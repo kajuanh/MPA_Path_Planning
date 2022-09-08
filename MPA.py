@@ -27,6 +27,7 @@ class MPA:
             s = fp.readline()
             s_l = s[0:-2].split(" ")
             f_map.append(list(map(int, s_l)))
+        print(f_map)
         for f_i in l_dst:
             f_map[int(f_i[0])][int(f_i[1])] = 0
         self.n = f_n
