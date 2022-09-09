@@ -192,8 +192,8 @@ x0=start[0]
 y0=start[1]
 while t<1:
   t+=toc_do
-  x= int(x0+a*t)
-  y= int(y0+b*t)
+  x= math.floor(x0+a*t)
+  y= math.floor(y0+b*t)
   list_point.append((x,y))
 print(list_point)
 # test_map = mpa_obj.environment
@@ -277,6 +277,10 @@ while run:
     # rect.x,rect.y=(obs[0]*puvt+pad_0),(obs[1]*puvt+pad_0)
     # print(obs[0],obs[1])
     pygame.draw.rect(screen, (0,0,254), rect)
+  rect= pygame.Rect(int(y0)*puvt,int(x0)*puvt,width,height)
+  pygame.draw.rect(screen, (0,126,126), rect)
+  rect= pygame.Rect(int(end[1])*puvt,int(end[0])*puvt,width,height)
+  pygame.draw.rect(screen, (0,126,126), rect)
 
   for event in pygame.event.get():
     if event.type == pygame.QUIT:
