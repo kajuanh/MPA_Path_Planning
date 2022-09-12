@@ -1,3 +1,4 @@
+import pygame
 import math
 import numpy as np
 import time
@@ -64,7 +65,7 @@ class MPA:
       for i in range(num_goal):
         goal = file.readline().strip()
         goal_coordinates = tuple(map(to_center, goal.split()))
-        list_goal.append(goal_coordinates)
+        list_goal.append((goal_coordinates[1],goal_coordinates[0]))
 
       #get map from file
       np_map = np.zeros((map_size, map_size), int)
@@ -73,15 +74,14 @@ class MPA:
 
       #get list obstacle from map
       list_obstacle = np.where(np_map == 1)
-      list_obstacle = list(zip(list_obstacle[0], list_obstacle[1]))
-
+      list_obstacle = list(zip(list_obstacle[1], list_obstacle[0]))
       #change node goal to empty
       for goal in list_goal:
         np_map[int(goal[0])][int(goal[1])] = 0
       #save data about map
       self.obstacles = list_obstacle
       self.goals = list_goal
-      self.environment = np_map
+      self.environment = np_map.transpose()
       self.map_size = map_size
 
   def check_collision(self, f_X1, f_X2):
@@ -89,14 +89,33 @@ class MPA:
     y1 = int(f_X1[1])
     x2 = int(f_X2[0])
     y2 = int(f_X2[1])
+    a = x2 - x1
+    b = y2 - y1
+    t = 0
+    toc_do = math.sqrt(abs(0.01/(a*b)))if a != 0 and b != 0 else 0.01
 
     if self.environment[x1][y1] == 1 or self.environment[x2][y2] == 1:
       return True
-    for obstacle in self.obstacles:
-      obs_x = obstacle[0]
-      obs_Y = obstacle[1]
-      if ((obs_x-x1)/(x2-x1)==(obs_Y-y1)/(y2-y1)):
-        return True
+    while t < 1-toc_do:
+      t += toc_do
+      x = int(x1+a*t)
+      y = int(y1+b*t)
+      x_top_left = math.floor(x1-0.5+a*t)
+      y_top_left = math.floor(y1-0.5+b*t)
+      x_bottom_right = math.floor(x1+0.5+a*t)
+      y_bottom_right = math.floor(y1+0.5+b*t)
+      for obs in self.obstacles:
+        if (x, y) == obs or \
+            (x_top_left, y_top_left) == obs or \
+                (x_bottom_right, y_bottom_right) == obs:
+            return True
+    return False
+
+    # for obstacle in self.obstacles:
+    #   obs_x = obstacle[0]
+    #   obs_Y = obstacle[1]
+    #   # if ((obs_x-x1)/(x2-x1) == (obs_Y-y1)/(y2-y1)):
+    #   #   return True
 
     return False
 
@@ -159,7 +178,7 @@ class MPA:
 # #     for event in pygame.event.get():
 # #         if event.type == pygame.QUIT:
 # #             run = False
-# # 
+# #
 # # # pygame.mouse.set_visible(False)
 # # DENSITY = 500
 # # RADIUS = 1000
@@ -168,119 +187,116 @@ class MPA:
 mpa_obj = MPA('Test/map15_3.txt')
 print(map_size := mpa_obj.map_size)
 print(goals := mpa_obj.goals)
+mpa_obj.obstacles.sort()
 print(obstacles := mpa_obj.obstacles)
-print(environment := mpa_obj.environment)
-start = time.time()
-for i in range(10000):
-  mpa_obj.check_collision((1,1),(0,5))
-end = time.time()
-print(end - start)
+print(environment := mpa_obj.environment.transpose())
+start_time = time.time()
+for i in range(10000000):
+  mpa_obj.check_collision(goals[0], goals[1])
+
 # import pygame, math, sys
 list_point = []
 start = mpa_obj.goals[0]
 end = mpa_obj.goals[1]
-# start = (1,7)
-# end = (0,5)
-print(start,end)
+# start = (1,6)
+# end = (2,6
 a = end[0]-start[0]
 b = end[1]-start[1]
-print(a,b)
-t=0
-toc_do = math.sqrt(abs(0.16/(a*b)))
-print(toc_do)
-x0=start[0]
-y0=start[1]
-while t<1:
-  t+=toc_do
-  x= math.floor(x0+a*t)
-  y= math.floor(y0+b*t)
-  list_point.append((x,y))
-print(list_point)
-# test_map = mpa_obj.environment
-# for p in set(list_point):
-#   # if test_map[p[0]][p[1]]==1:
-#   #   test_map[p[0]][p[1]] =9
-# print(test_map)
-import pygame
+t = 0
 
+toc_do = math.sqrt(abs(0.01/(a*b)))if a != 0 and b != 0 else 0.01
+x0 = start[0]
+y0 = start[1]
+while t < 1-toc_do:
+  t += toc_do
+  x = int(x0+a*t)
+  y = int(y0+b*t)
+  x1 = math.floor(x0-0.5+a*t)
+  y1 = math.floor(y0-0.5+b*t)
+  x2 = math.floor(x0+0.5+a*t)
+  y2 = math.floor(y0+0.5+b*t)
+  list_point.append((x, y))
+  list_point.append((x1, y1))
+  list_point.append((x2, y2))
+list_point = list(set(list_point))
+list_point.sort()
+list_point = [point for point in list_point if point in obstacles]
+print(list_point)
+end_time = time.time()
+print(end_time - start_time)
 pygame.init()
 clock = pygame.time.Clock()
 screen_width = 800
 screen_height = 800
 screen = pygame.display.set_mode((screen_width, screen_height))
 # pygame.display.set_caption('Rays')
-# moving_rect = pygame.rect(100,100,100,100)
-
-# x_speed, y_speed = 5, 4
 obstacles_Rect = []
 # for obs in obstacles:
-#   # obs_dict = {}
-#   # obs_dict['coordinates']=obs
-#   # obs.__dict__
-#   # obs_dict['Rect']=pygame.Rect(100,100,100,100)
+# #   # obs_dict = {}
+# #   # obs_dict['coordinates']=obs
+# #   # obs.__dict__
+# #   # obs_dict['Rect']=pygame.Rect(100,100,100,100)
 #   rect= pygame.Rect(50,50,50,50)
 #   rect.x,rect.y=obs[0],obs[1]
 #   obstacles_Rect.append(rect)
+# x_speed = (int(x0)+a*t)*puvt
+# y_speed = (int(y0)+b*t)*puvt
 
 run = True
 pad = 800/30
-puvt = 800/15 # length 1 unit vector
-size_one_node= (pad,pad,pad,pad)
-pad_0 = 800/15
-size_one_node_0 = (0,pad_0,pad_0,pad_0)
-width = height = 800/15
-t=0
-def straight_line(x_speed,y_speed):
-  moving_rect.x+= x_speed
-  moving_rect.y+= y_speed
-  # for obs in obstacles_Rect:
-  #   if moving_rect.colliderect(obs):
-  #     return moving_rect.x,moving_rect.y
-  #     break
-  pygame.draw.rect(screen, (0,255,0), moving_rect)
-  return -1,-1
-t=0
-x_vt=y_vt =-1
+puvt = 800/15  # length 1 unit vector
+width = height = 800/15-0.4
+t = 0
+
+
+def straight_line(x_speed, y_speed):
+  moving_rect.x += x_speed
+  moving_rect.y += y_speed
+  for obs in obstacles_Rect:
+    if moving_rect.colliderect(obs):
+      pygame.draw.rect(screen, (0, 0, 255), obs)
+  pygame.draw.rect(screen, (0, 255, 0), moving_rect)
+  pygame.display.update()
+  time.sleep(0.1)
+
+x_speed = a
+y_speed = b
+
+t = 0
+obstacles_collision = []
+for point in list_point:
+  rect = pygame.Rect(point[0]*puvt, point[1]*puvt, width, height)
+  obstacles_collision.append(rect)
+moving_rect = pygame.Rect(int(x0)*puvt, int(y0)*puvt, width, height)
+line_width = math.floor(math.sqrt(width*height))
 
 while run:
-  screen.fill((30,30,30))
+  screen.fill((30, 30, 30))
   for obs in obstacles:
-    rect= pygame.Rect(obs[1]*puvt,obs[0]*puvt,width,height)
+    rect = pygame.Rect(int(obs[0]*puvt), int(obs[1]*puvt), width, height)
     obstacles_Rect.append(rect)
-    # rect.x,rect.y=(obs[0]*puvt+pad_0),(obs[1]*puvt+pad_0)
-    # print(obs[0],obs[1])
-    pygame.draw.rect(screen, (255,0,0), rect)
-  # start = (1,6)
-  # end = (12,2)
-  # x0=start[1]*puvt
-  # y0=start[0]*puvt
-  # x1=end[1]*puvt
-  # y1=end[0]*puvt
-  # moving_rect = pygame.Rect(x0,y0,width,height)
-  # t+=0.0001
-  # x_speed = t*(end[1]-start[1])
-  # y_speed = t*(end[0]-start[0])
-  # if x_vt==-1 and y_vt ==-1 and t<1:
-  #   x_vt,y_vt=straight_line(x_speed,y_speed)
-  # elif t>=1 :
-  #   moving_rect.x=x1
-  #   moving_rect.y=y1
-  #   pygame.draw.rect(screen, (0,255,0), moving_rect)
+    pygame.draw.rect(screen, (255, 0, 0), rect)
+  x1 = int(end[0])*puvt
+  y1 = int(end[1])*puvt
+  rect = pygame.Rect(int(x0)*puvt, int(y0)*puvt, width, height)
+  pygame.draw.rect(screen, (0, 126, 126), rect)
+  rect = pygame.Rect(int(end[0])*puvt, int(end[1])*puvt, width, height)
+  pygame.draw.rect(screen, (0, 126, 126), rect)
+  pygame.draw.rect(screen, (0, 255, 0), moving_rect)
+  # while t < 1:
+  if t<=1:
+    t += 1/(abs(a*b))
+    straight_line(x_speed, y_speed)
+    # pygame.display.update()
+  else:
+    for rect in obstacles_collision:
+      pygame.draw.rect(screen, (0, 0, 254), rect)
 
-  # else:
-  #   moving_rect.x=x_vt
-  #   moving_rect.y=x_vt
-  #   pygame.draw.rect(screen, (0,255,0), moving_rect)
-  for point in list_point:
-    rect= pygame.Rect(point[1]*puvt,point[0]*puvt,width,height)
-    obstacles_Rect.append(rect)
-    # rect.x,rect.y=(obs[0]*puvt+pad_0),(obs[1]*puvt+pad_0)
-    # print(obs[0],obs[1])
-    pygame.draw.rect(screen, (0,0,254), rect)
-  rect= pygame.Rect(int(y0)*puvt,int(x0)*puvt,width,height)
-  pygame.draw.rect(screen, (0,126,126), rect)
-  rect= pygame.Rect(int(end[1])*puvt,int(end[0])*puvt,width,height)
-  pygame.draw.rect(screen, (0,126,126), rect)
+    pygame.draw.line(screen, (0, 255, 0), (x0*puvt, int(y0)*puvt),
+                    (end[0]*puvt, int(end[1])*puvt), int(width))
+    pygame.draw.line(screen, (0, 255, 0), (x0*puvt, int(y0)*puvt+puvt),
+                    (end[0]*puvt, int(end[1])*puvt+puvt), int(width))
+
 
   for event in pygame.event.get():
     if event.type == pygame.QUIT:
