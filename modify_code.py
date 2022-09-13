@@ -177,9 +177,13 @@ print(environment.T)
 # end = time.time()
 # print(end - start)
 import pygame, math, sys
+def point_to_square (point:tuple):
+  x = point[0]
+  y = point[1]
+  return (x+0.5,y+0.5), (x-0.5,y-0.5), (x-0.5,y+0.5), (x+0.5,y-0.5)
 list_point = []
 start = mpa_obj.goals[0]
-end = mpa_obj.goals[1]
+end = mpa_obj.goals[2]
 # start = (1,7)
 # end = (0,5)
 print(start,end)
@@ -192,34 +196,31 @@ print(toc_do)
 x0=start[0]
 y0=start[1]
 start_time = time.time()
-while t<1:
-  t+=toc_do
-  x= math.floor(x0+a*t)
-  y= math.floor(y0+b*t)
+while t < 1:
+  t += toc_do
   x_top_left = math.floor(x0-0.5+a*t)
   y_top_left = math.floor(y0-0.5+b*t)
   x_bottom_right = math.floor(x0+0.5+a*t)
   y_bottom_right = math.floor(y0+0.5+b*t)
-  # for obs in obstacles:
-  #   if (x,y) == obs:
-  #     list_point.append((x,y))
-  #   if (x_top_left,y_top_left) == obs:
-  #     list_point.append((x_top_left,y_top_left))
-  #   if (x_bottom_right,y_bottom_right) == obs:
-  #     list_point.append((x_top_left,y_top_left))
-  if environment[x][y]==1:
-    list_point.append((x,y))
-  if environment[x_top_left][y_top_left]==1:
-    list_point.append((x_top_left,y_top_left))
-  if environment[x_bottom_right][y_bottom_right]==1:
-    list_point.append((x_bottom_right,y_bottom_right))
-    
+  x_top_right = math.floor(x0+0.5+a*t)
+  y_top_right = math.floor(y0-0.5+b*t)
+  x_bottom_left = math.floor(x0-0.5+a*t)
+  y_bottom_left = math.floor(y0+0.5+b*t)
+  if environment[x_top_left][y_top_left] == 1:
+    list_point.append((x_top_left, y_top_left))
+  if environment[x_bottom_right][y_bottom_right] == 1:
+    list_point.append((x_bottom_right, y_bottom_right))
+  if environment[x_top_right][y_top_right] == 1:
+    list_point.append((x_top_right, y_top_right))
+  if environment[x_bottom_left][y_bottom_left] == 1:
+    list_point.append((x_bottom_left, y_bottom_left))
+
 list_point = list(set(list_point))
 list_point.sort()
 end_time = time.time()
 print(list_point)
 import pygame
-
+print(start_time-end_time)
 pygame.init()
 clock = pygame.time.Clock()
 screen_width = 800
@@ -229,6 +230,8 @@ screen = pygame.display.set_mode((screen_width, screen_height))
 # moving_rect = pygame.rect(100,100,100,100)
 
 # x_speed, y_speed = 5, 4
+start_square = list(point_to_square(start))
+end_square = list(point_to_square(end))
 obstacles_Rect = []
 obstacles_colliderect = []
 run = True
@@ -266,21 +269,30 @@ while run:
   screen.fill((30,30,30))
   for rect in obstacles_Rect:
     pygame.draw.rect(screen, (255,0,0), rect)
-  pygame.draw.rect(screen, (0,126,126), start_rect)
-  pygame.draw.rect(screen, (0,126,126), end_rect)
+  pygame.draw.rect(screen, (0,126,126), start_rect,2)
+  pygame.draw.rect(screen, (0,126,126), end_rect,2)
 
 
-  if moving_rect.x>int(x1)*puvt and moving_rect.y<int(y1)*puvt:
+  if moving_rect.x<int(x1)*puvt and moving_rect.y<=int(y1)*puvt:
     straight_line(x_speed,y_speed)
   else:
     for rect in obstacles_colliderect:
       pygame.draw.rect(screen, (0, 0, 254), rect)
+    for i in range(4):
+      pygame.draw.line(screen, (0, 255, 0), 
+                       (start_square[i][0]*puvt, start_square[i][1]*puvt),
+                       (end_square[i][0]*puvt, end_square[i][1]*puvt),
+                       )
+    # pygame.draw.line(screen, (0, 255, 0), (x0*puvt, y0*puvt),
+    #                 (x1*puvt, y1*puvt), 1)
+    # pygame.draw.line(screen, (0, 255, 0), (x0*puvt, y0*puvt),
+    #                 (x1*puvt, y1*puvt), 1)
 
-    pygame.draw.line(screen, (0, 255, 0), (x0*puvt, int(y0)*puvt),
-                    (end[0]*puvt, int(end[1])*puvt), int(width))
-    pygame.draw.line(screen, (0, 255, 0), (x0*puvt, int(y0)*puvt+puvt),
-                    (end[0]*puvt, int(end[1])*puvt+puvt), int(width))
-
+    # pygame.draw.line(screen, (0, 255, 0), (x0*puvt, int(y0)*puvt),
+    #                 (end[0]*puvt, int(end[1])*puvt), int(width))
+    # pygame.draw.line(screen, (0, 255, 0), (x0*puvt, int(y0)*puvt+puvt),
+    #                 (end[0]*puvt, int(end[1])*puvt+puvt), int(width))
+    pygame.display.flip()
 
   for event in pygame.event.get():
     if event.type == pygame.QUIT:
