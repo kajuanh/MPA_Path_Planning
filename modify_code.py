@@ -273,14 +273,14 @@ while run:
   if moving_rect.x>int(x1)*puvt and moving_rect.y<int(y1)*puvt:
     straight_line(x_speed,y_speed)
   else:
-    pass
-  # for rect in obstacles_colliderect:
-  #   pygame.draw.rect(screen, (0,0,254), rect)
+    for rect in obstacles_colliderect:
+      pygame.draw.rect(screen, (0, 0, 254), rect)
 
-  #   # rect.x,rect.y=(obs[0]*puvt+pad_0),(obs[1]*puvt+pad_0)
-  #   # print(obs[0],obs[1])
-  #   pygame.draw.rect(screen, (0,0,254), rect)
-  # pygame.draw.rect(screen, (0,126,126), rect)
+    pygame.draw.line(screen, (0, 255, 0), (x0*puvt, int(y0)*puvt),
+                    (end[0]*puvt, int(end[1])*puvt), int(width))
+    pygame.draw.line(screen, (0, 255, 0), (x0*puvt, int(y0)*puvt+puvt),
+                    (end[0]*puvt, int(end[1])*puvt+puvt), int(width))
+
 
   for event in pygame.event.get():
     if event.type == pygame.QUIT:
