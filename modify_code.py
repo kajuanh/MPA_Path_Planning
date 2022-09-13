@@ -77,7 +77,7 @@ class MPA:
       list_obstacle = list(zip(list_obstacle[1], list_obstacle[0]))
       #change node goal to empty
       for goal in list_goal:
-        np_map[int(goal[0])][int(goal[1])] = 0
+        np_map[int(goal[1])][int(goal[0])] = 0
       #save data about map
       self.obstacles = list_obstacle
       self.goals = list_goal
@@ -191,8 +191,8 @@ mpa_obj.obstacles.sort()
 print(obstacles := mpa_obj.obstacles)
 print(environment := mpa_obj.environment.transpose())
 start_time = time.time()
-for i in range(10000000):
-  mpa_obj.check_collision(goals[0], goals[1])
+# for i in range(10000000):
+#   mpa_obj.check_collision(goals[0], goals[1])
 
 # import pygame, math, sys
 list_point = []
