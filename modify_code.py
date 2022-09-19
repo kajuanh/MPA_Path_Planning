@@ -1,7 +1,4 @@
 import math
-from platform import node
-from tabnanny import check
-from typing import Tuple
 import numpy as np
 import time
 
@@ -19,17 +16,17 @@ class Node:
     is a square as :
       (x,y)___________(x_r,y_r)
         |                 |
-        |      1x1        |
+        |    x_c,y_c      |
     (x_b,y_b)________(x_br,y_br)
     '''
 
     self.x = x
     self.y = y
-    self.hight_corners = [(x, y), (x+1, y)],
-    self.low_corners =[(x, y+0.8), (x+0.8, y+0.8)]
+    self.three_corners = [(x+1, y), (x, y+1), (x+1, y+1)]
+    self.center = (x+0.5, y+0.5)
     self.a = None
     self.b = None
-    self.delta_t = None
+    # self.delta_t = None
 
   def linear_equations_to(self, x:int,y:int) -> None:
     '''linear_equations AB:
@@ -40,16 +37,17 @@ class Node:
     '''     
     self.a = x-self.x
     self.b = y-self.y
-    self.delta_t = math.sqrt(abs(0.01/(self.a *self.b))) if self.a !=0 and self.b != 0 else 0.01
+    print(self.a,self.b)
+    # self.delta_t = 1/(self.a*self.b) if self.a !=0 and self.b != 0 else 0.1
 
   def check_line_collision(self, environment) -> bool:
     '''check '''
     check = False
     t = 0
     print(self.a,self.b)
-    while t < 1-self.delta_t:
-      t += self.delta_t
-      for x, y in self.four_corners:
+    while t < 1-0.05:
+      t += 0.1
+      for x, y in self.three_corners:
           x = math.floor(x + self.a*t)
           y = math.floor(y + self.b*t)
           if environment[x][y] == 1:
@@ -60,17 +58,28 @@ class Node:
         break
     return check
 
-  def collision_coordinates(self, environment: np) -> list[tuple]:
+  def collision_coordinates(self, environment: np, end) -> list[tuple]:
     collision = []
     t = 0
-    while t < 1:
-      t += self.delta_t
-      print(t)
-      for x, y in self.four_corners:
-          x = math.floor(x + self.a*t)
-          y = math.floor(y + self.b*t)
-          if environment[x][y] == 1:
-            collision.append((x,y))
+    while t<1-0.05:
+      t += 0.05
+      if self.a!=0 and self.b!=0:
+        location_x =  math.floor(self.x + self.a*t)
+        location_y =  math.floor(self.y + self.b*t)
+
+        if environment[location_x][location_y] == 1:
+          collision.append((location_x,location_y))
+        for x, y in self.three_corners:
+            x = math.floor(x + self.a*t)
+            y = math.floor(y + self.b*t)
+            if environment[x][y] == 1:
+              collision.append((x,y))
+      else:
+        location_x =  math.floor(self.x + self.a*t)
+        location_y =  math.floor(self.y + self.b*t)
+        if environment[location_x][location_y] == 1:
+          collision.append((location_x,location_y))
+
     collision = list(set(collision))
     collision.sort()
     return collision
@@ -138,15 +147,25 @@ class MPA:
 
     return False
 
-# print(distance((1,1),(2,2)))
-mpa_obj = MPA('Test/map15_3.txt')
-print(map_size := mpa_obj.map_size)
-print(goals:= mpa_obj.goals)
-print(obstacles := mpa_obj.obstacles)
-environment = mpa_obj.environment
-print(environment.T)
+  def point_collisions(self, x1:int, y1:int, x2:int, y2:int):
+    #convert to Node
+    node = Node(x1, y1)
+    node.linear_equations_to(x2, y2)
+    # print(node.check_line_collision(self.environment))
+    node.collision_coordinates(self.environment,(x2,y2))
+    
+  
 
-print(mpa_obj.check_collision(0,0,12,0))
+
+# print(distance((1,1),(2,2)))
+# mpa_obj = MPA('Test/map15_3.txt')
+# print(map_size := mpa_obj.map_size)
+# print(goals:= mpa_obj.goals)
+# print(obstacles := mpa_obj.obstacles)
+# environment = mpa_obj.environment
+# print(environment.T)
+
+# print(mpa_obj.check_collision(0,0,12,0))
 # while t < 1-2*toc_do:
 #     t += toc_do
 #     if a != 0 and b != 0:
