@@ -186,3 +186,24 @@ class MPA:
 #           list_point.append((x_top_right, y_top_right))
 #       if environment[x_bottom_left][y_bottom_left] == 1:
 #           list_point.append((x_bottom_left, y_bottom_left))
+# import datetime
+# import shutil
+# import sys 
+# import os
+# sys.path.append(os.path.abspath("/home/miichi/tmpcode/DA/MPA_Path_Planning"))
+# from modify_code import MPA
+# def solve(filename, label, isSolveAll=False):
+#     now = datetime.datetime.now()
+#     start_time = datetime.datetime.timestamp(now)
+#     mpa_sol = MPA(filename)
+#     filenamesol = "Solutions/map" + str(mpa_sol.map_size) + "_" + str(len(mpa_sol.goals)) + "_sol.txt"
+#     os.makedirs(os.path.dirname(filenamesol), exist_ok=True)
+#     shutil.copyfile(filename, filenamesol)
+#     # if isSolveAll:
+#     #     case_map = filename.get()[13:14]
+#     #     filenamesol = "Solutions\case" + case_map + "_map" + str(mpa_sol.n) + "_" + str(len(mpa_sol.list_dst)) + "_sol.txt"
+#     now = datetime.datetime.now()
+#     end_time = datetime.datetime.timestamp(now)
+#     print(end_time - start_time)
+
+# solve('Test/map15_3.txt','')
