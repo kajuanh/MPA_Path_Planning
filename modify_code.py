@@ -37,23 +37,33 @@ class Node:
     '''     
     self.a = x-self.x
     self.b = y-self.y
-    print(self.a,self.b)
     # self.delta_t = 1/(self.a*self.b) if self.a !=0 and self.b != 0 else 0.1
 
   def check_line_collision(self, environment) -> bool:
     '''check '''
     check = False
     t = 0
-    print(self.a,self.b)
     while t < 1-0.05:
-      t += 0.1
-      for x, y in self.three_corners:
+      t += 0.05
+      if self.a!=0 and self.b!=0:
+        location_x =  math.floor(self.x + self.a*t)
+        location_y =  math.floor(self.y + self.b*t)
+        if environment[location_x][location_y] == 1:
+          check = True
+          break
+        for x, y in self.three_corners:
           x = math.floor(x + self.a*t)
           y = math.floor(y + self.b*t)
           if environment[x][y] == 1:
             check = True
-            print('found(',x,y,')')
             break
+      else:
+        location_x =  math.floor(self.x + self.a*t)
+        location_y =  math.floor(self.y + self.b*t)
+        if environment[location_x][location_y] == 1:
+          check = True
+          break
+
       if check == True:
         break
     return check
@@ -141,7 +151,6 @@ class MPA:
     #convert to Node
     node = Node(x1, y1)
     node.linear_equations_to(x2, y2)
-    # print(node.check_line_collision(self.environment))
     if node.check_line_collision(self.environment):
       return True
 
@@ -151,16 +160,25 @@ class MPA:
     #convert to Node
     node = Node(x1, y1)
     node.linear_equations_to(x2, y2)
-    # print(node.check_line_collision(self.environment))
-    node.collision_coordinates(self.environment,(x2,y2))
+    return node.collision_coordinates(self.environment,(x2,y2))
     
-  
+  def way(self, st, dst):
+    if not self.check_collision(st[0],st[1],dst[0],dst[1]):
+      return distance(st, dst), [st, dst]
+    n_child = self.map_size
+    min_s = math.inf
+    prey = list([])
+    best_prey = list([])
+    old_s = list([])
+    max_d = 0
+    print(n_child,min_s,prey,best_prey,old_s,max_d,sep='(:-:)')
+
 
 
 # print(distance((1,1),(2,2)))
 # mpa_obj = MPA('Test/map15_3.txt')
 # print(map_size := mpa_obj.map_size)
-# print(goals:= mpa_obj.goals)
+# print(goals:= mpa_obj.goals)5
 # print(obstacles := mpa_obj.obstacles)
 # environment = mpa_obj.environment
 # print(environment.T)
