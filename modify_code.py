@@ -1,5 +1,6 @@
 import math
 import numpy as np
+import random as rd
 import time
 
 def to_center(var: str):
@@ -145,6 +146,10 @@ class MPA:
 
   def check_collision(self, x1:int, y1:int, x2:int, y2:int):
     ''''''
+    if x1 >= self.map_size or y1 >= self.map_size or x2 >= self.map_size or y2 >= self.map_size:
+      return True
+    if x1 < 0 or y1 < 0 or x2 < 0 or y2 < 0:
+      return True
     if self.environment[x1][y1] == 1 or self.environment[x2][y2] == 1:
       return True
     
@@ -162,6 +167,45 @@ class MPA:
     node.linear_equations_to(x2, y2)
     return node.collision_coordinates(self.environment,(x2,y2))
     
+  def check(self, f_X1, f_X2):
+    f_x = f_X1[0]
+    f_y = f_X1[1]
+    pre_x = f_X2[0]
+    pre_y = f_X2[1]
+    a_y = (f_y - pre_y) / (f_x - pre_x) if (f_x -pre_x)!= 0 else 0
+    a_x = (f_x - pre_x) / (f_y - pre_y) if (f_y - pre_y) != 0 else 0
+
+    if f_x < self.origin:
+        f_a = a_y
+        f_b = f_y - f_a * f_x
+        f_x = self.origin
+        f_y = f_a * f_x + f_b
+    elif f_x >= self.map_size:
+        f_a = a_y
+        f_b = f_y - f_a * f_x
+        f_x = self.map_size - self.origin
+        f_y = f_a * f_x + f_b
+    elif f_y < self.origin:
+        f_a = a_x
+        f_b = f_x - f_a * f_y
+        f_y = self.origin
+        f_x = f_a * f_y + f_b
+    elif f_y >= self.map_size:
+        f_a = a_x
+        f_b = f_x - f_a * f_y
+        f_y = self.map_size - self.origin
+        f_x = f_a * f_y + f_b
+    if f_x >= self.map_size - self.origin:
+        f_x = self.map_size - self.origin
+    if f_y >= self.map_size - self.origin:
+        f_y = self.map_size - self.origin
+    if f_x <= self.origin:
+        f_x = self.origin
+    if f_y <= self.origin:
+        f_y = self.origin
+
+    return round(f_x, 2), round(f_y, 2)
+
   def way(self, st, dst):
     if not self.check_collision(st[0],st[1],dst[0],dst[1]):
       return distance(st, dst), [st, dst]
@@ -171,7 +215,50 @@ class MPA:
     best_prey = list([])
     old_s = list([])
     max_d = 0
+    empty_node = self.map_size**2 - len(self.obstacles)
+
     print(n_child,min_s,prey,best_prey,old_s,max_d,sep='(:-:)')
+    # for index in range(n_child):
+    origin_sol = [st]
+    temp_map = self.environment
+    print(temp_map)
+    print(origin_sol)
+    late = origin_sol[-1]
+    temp_map[late[0]][late[1]] = 3
+    limit = 0
+    while self.check_collision(late[0],late[1], dst[0],dst[1]):
+      while True:
+        print(late)
+        # time.sleep(0.1)
+        # print(limit)
+        limit += 1
+        x0 = (self.x_min + rd.random() * (self.x_max - self.x_min)) * (rd.randint(0, 2) - 1)
+        y0 = (self.x_min + rd.random() * (self.x_max - self.x_min)) * (rd.randint(0, 2) - 1)
+        x,y = late[0]+ int(x0), late[1]+int(y0)
+        print('de do moi',x,y)
+
+        print(self.check_collision(late[0], late[1], x, y))
+        print('vi tri',temp_map[x][y]if 0<=x<15 and 0<=y<15 else -1)
+        print(limit,empty_node)
+        print(temp_map.T)
+        if  not self.check_collision(late[0], late[1], x, y) and temp_map[x][y] == 0:
+          origin_sol.append([x, y])
+          temp_map[int(x)][int(y)] = 3
+          late = origin_sol[-1]
+          break
+        if limit > empty_node:
+          temp_map[late[0]][late[1]] = 0
+          origin_sol.pop()
+          break
+      if len(origin_sol) == 0 :
+        origin_sol = [st]
+        late = origin_sol[-1]
+        temp_map = self.environment
+        limit = 0
+        print('late',late)
+        
+    print(origin_sol)
+    print(temp_map.T)
 
 
 
