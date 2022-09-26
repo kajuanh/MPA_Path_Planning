@@ -129,15 +129,22 @@ class MPA:
       np_map = np_map.transpose()
 
       #get list obstacle from map
-      list_obstacle = np.where(np_map == 1)
-      list_obstacle = list(zip(list_obstacle[0], list_obstacle[1]))
-
+      list_obstacle = []
+      list_empty = []
+      for i in range(map_size):
+        for j in range(map_size):
+          if np_map[i][j] == 1:
+            list_obstacle.append((i,j))
+          else:
+            list_empty.append((i,j))
+                   
       #change node goal to empty
       for goal in list_goal:
         np_map[int(goal[0])][int(goal[1])] = 0
 
       #save data about map
       self.obstacles = list_obstacle
+      self.empty = list_empty
       self.goals = list_goal
       self.environment = np_map
       self.map_size = map_size
@@ -215,51 +222,37 @@ class MPA:
     best_prey = list([])
     old_s = list([])
     max_d = 0
-    empty_node = self.map_size**2 - len(self.obstacles)
 
     print(n_child,min_s,prey,best_prey,old_s,max_d,sep='(:-:)')
-    # for index in range(n_child):
+    # for index in range(10):
     origin_sol = [st]
     temp_map = self.environment
-    print(temp_map)
-    print(origin_sol)
-    late = origin_sol[-1]
-    temp_map[late[0]][late[1]] = 3
+    temp_map[origin_sol[-1][0]][origin_sol[-1][0]] = 3
+    empty = self.empty
     limit = 0
-    while self.check_collision(late[0],late[1], dst[0],dst[1]):
+    used = 0
+    while self.check_collision(origin_sol[-1][0], origin_sol[-1][1], dst[0], dst[1]):
       while True:
-        print(late)
-        # time.sleep(0.1)
-        # print(limit)
-        limit += 1
-        x0 = (self.x_min + rd.random() * (self.x_max - self.x_min)) * (rd.randint(0, 2) - 1)
-        y0 = (self.x_min + rd.random() * (self.x_max - self.x_min)) * (rd.randint(0, 2) - 1)
-        x,y = late[0]+ int(x0), late[1]+int(y0)
-        print('de do moi',x,y)
-
-        print(self.check_collision(late[0], late[1], x, y))
-        print('vi tri',temp_map[x][y]if 0<=x<15 and 0<=y<15 else -1)
-        print(limit,empty_node)
-        print(temp_map.T)
-        if  not self.check_collision(late[0], late[1], x, y) and temp_map[x][y] == 0:
-          origin_sol.append([x, y])
-          temp_map[int(x)][int(y)] = 3
-          late = origin_sol[-1]
-          break
-        if limit > empty_node:
-          temp_map[late[0]][late[1]] = 0
-          origin_sol.pop()
-          break
-      if len(origin_sol) == 0 :
-        origin_sol = [st]
-        late = origin_sol[-1]
-        temp_map = self.environment
-        limit = 0
-        print('late',late)
-        
-    print(origin_sol)
+        limit +=1
+        random_node = rd.choices(empty)[0]
+        x = random_node[0]
+        y = random_node[1]
+        if temp_map[x][y] == 0 and not self.check_collision(x, y, origin_sol[-1][0], origin_sol[-1][1]):
+            origin_sol.append([x, y])
+            temp_map[x][y] = 3
+            empty.remove((x,y))
+            print(empty)
+            break
+        if limit > len(empty):
+            origin_sol.pop()
+            break
+      if len(origin_sol) == 0:
+          origin_sol = [st]
+          temp_map = self.environment
+          temp_map[origin_sol[-1][0]][origin_sol[-1][0]] = 3
+          empty = self.empty
     print(temp_map.T)
-
+    print(origin_sol)
 
 
 # print(distance((1,1),(2,2)))
