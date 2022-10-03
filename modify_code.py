@@ -4,7 +4,7 @@ import numpy as np
 import random as rd
 import time
 from typing import Callable, TypeVar
-
+from scipy.stats import levy
 
 def to_center(var: str):
   return int(var)+0.5
@@ -239,6 +239,34 @@ class MPA:
           s += distance(f_sol[-1], f_dst)
       return 0, s
 
+  def normal_search(self, f_sol):
+      f_ns_sol = []
+      for f_i in f_sol:
+          f_x = rd.randint(-2, 2)
+          f_y = rd.randint(-2, 2)
+          # print(f_x,f_y)
+          f_ns_sol.append([f_i[0] + f_x, f_i[1] + f_y])
+      return f_ns_sol
+
+  def evolution(self, f_father, f_mother, f_st, f_dst):
+      f_child = [f_st]
+      for f_i in range(len(f_father)):
+          if self.check_collision(f_child[-1], f_father[f_i]):
+              f_child.append(f_mother[f_i])
+          elif self.check_collision(f_child[-1], f_mother[f_i]):
+              f_child.append(f_father[f_i])
+          else:
+              if distance(f_child[-1], f_father[f_i]) < distance(f_child[-1], f_mother[f_i]):
+                  f_child.append(f_father[f_i])
+              else:
+                  f_child.append(f_mother[f_i])
+          if not self.check_collision(f_child[-1], f_dst):
+              break
+      f_child.remove(f_st)
+      for f_i in range(len(f_father) - len(f_child)):
+          f_child.append(f_dst)
+      return f_child
+
   def way(self, st, dst):
     if not self.check_collision(st, dst):
       return distance(st, dst), [st, dst]
@@ -249,7 +277,6 @@ class MPA:
     old_s = []
     max_d = 0
 
-    print(n_child, min_s, prey, best_prey, old_s, max_d, sep='(:-:)')
     # for index in range(10):
     i = 5
     limit_rd = (i+1)**2-1
@@ -320,8 +347,141 @@ class MPA:
     for i in prey:
       i.extend([dst for _ in range(max_d-len(i))])
     a_prey = np.array(prey)
-    for i in a_prey:
-      print(i.T)
+    
+    best_prey.extend([dst for _ in range(max_d-len(best_prey))])
+    # for i in a_prey:
+    #   print(i.T)
+    # return a_prey
+    d = max_d
+    X_min = np.array([[self.x_min, self.x_min] for _ in range(d)])
+    X_max = np.array([[self.x_max, self.x_max] for _ in range(d)])
+    prey = np.array(prey)
+    old_prey = np.array(prey)
+    loop = 100
+    levy.a = 1.5
+    levy.b = 1
+    P = np.array([[0.5, 0.5] for _ in range(d)])
+
+    for index in range(loop):
+        for i in range(n_child):
+            new_v, new_dis = self.calculator(prey[i], st, dst)
+            if new_v == 0:
+                if new_dis < old_s[i]:
+                    old_s[i] = new_dis
+                else:
+                    prey[i] = np.array(old_prey[i])
+                if new_dis < min_s:
+                    min_s = new_dis
+                    print(min_s)
+                    best_prey = np.array(prey[i])
+            else:
+                prey[i] = np.array(old_prey[i])
+        Elite = np.array([list(best_prey) for _ in range(n_child)])
+        old_prey = np.array(prey)
+
+        cf = math.pow(1 - index / loop, 2 * index / loop)
+        CF = np.array([[cf, cf] for _ in range(d)])
+        for i in range(n_child):
+            pre_prey = []
+            rBx = np.random.normal(0, 1, d)
+            rBy = np.random.normal(0, 1, d)
+            Rb = np.array([[rBx[j], rBy[j]] for j in range(d)])
+            rLx = levy.rvs(0, 1, d)
+            rLy = levy.rvs(0, 1, d)
+            Rl = np.array([[rLx[j], rLy[j]] for j in range(d)])
+            rx = np.random.uniform(0, 1, d)
+            ry = np.random.uniform(0, 1, d)
+            R = np.array([[rx[j], ry[j]] for j in range(d)])
+            if index < loop / 3:
+                step = Rb * (Elite[i] - Rb * prey[i])
+                pre_prey = prey[i] + P * R * step
+            elif loop / 3 <= index < 2 * loop / 3:
+                if i < self.map_size / 2:
+                    step = Rl * (Elite[i] - Rl * prey[i])
+                    pre_prey = prey[i] + P * R * step
+                else:
+                    step = Rb * (Rb * Elite[i] - prey[i])
+                    pre_prey = Elite[i] + P * CF * step
+            elif index >= 2 * loop / 3:
+                step = Rl * (Rl * Elite[i] - prey[i])
+                pre_prey = Elite[i] + P * CF * step
+            for j in range(d):
+                pre_prey[j] = self.check(pre_prey[j], prey[i][j])
+            prey[i] = np.array(pre_prey)
+
+        for i in range(n_child):
+            new_v, new_dis = self.calculator(prey[i], st, dst)
+            if new_v == 0:
+                if new_dis < old_s[i]:
+                    old_s[i] = new_dis
+                else:
+                    prey[i] = np.array(old_prey[i])
+                if new_dis < min_s:
+                    min_s = new_dis
+                    best_prey = np.array(prey[i])
+                    print(min_s)
+            else:
+                prey[i] = np.array(old_prey[i])
+
+            child = self.normal_search(prey[i])
+            new_v, new_dis = self.calculator(child, st, dst)
+            if new_v == 0:
+                if new_dis < old_s[i]:
+                    old_s[i] = new_dis
+                    prey[i] = np.array(child)
+                if new_dis < min_s:
+                    min_s = new_dis
+                    best_prey = np.array(child)
+                    print(min_s)
+
+            ga_child = self.evolution(child, prey[i], st, dst)
+            new_v, new_dis = self.calculator(ga_child, st, dst)
+            if new_v == 0:
+                if new_dis < old_s[i]:
+                    old_s[i] = new_dis
+                    prey[i] = np.array(ga_child)
+                if new_dis < min_s:
+                    min_s = new_dis
+                    best_prey = np.array(ga_child)
+                    print(min_s)
+
+        old_prey = np.array(prey)
+
+        r_x = rd.random()
+        fad = 0.2 * (1 - r_x) + r_x
+        Fad = np.array([[fad, fad] for _ in range(d)])
+        ux = np.random.randint(0, 1, d)
+        uy = np.random.randint(0, 1, d)
+        U = np.array([[ux[j], uy[j]] for j in range(d)])
+
+        for i in range(n_child):
+            rx = np.random.uniform(0, 1, d)
+            ry = np.random.uniform(0, 1, d)
+            R = np.array([[rx[j], ry[j]] for j in range(d)])
+            pre_prey = prey[i]
+            if r_x < 0.2:
+                pre_prey = pre_prey + CF * (X_min + R * (X_max - X_min)) * U
+            else:
+                pre_prey = pre_prey + Fad * (prey[rd.randint(0, n_child - 1)] - prey[rd.randint(0, n_child - 1)])
+            for j in range(d):
+                pre_prey[j] = self.check(pre_prey[j], prey[i][j])
+            prey[i] = pre_prey
+
+    best_reduce = []
+    for i in best_prey:
+        best_reduce.append(i)
+        if not self.check_collision(i, dst):
+            break
+
+    final_sol = list([list(st)])
+    while self.check_collision(final_sol[-1], dst):
+        i = len(best_reduce) - 1
+        while self.check_collision(final_sol[-1], best_reduce[i]):
+            i -= 1
+        final_sol.append(list(best_reduce[i]))
+    final_sol.append(list(dst))
+    v_sol, dis_sol = self.calculator(final_sol, st, dst)
+    return dis_sol, final_sol, a_prey
         # if a_prey[i][j] !=prey[i][j]:
         #   print('another')
     # for i in range(10):
