@@ -6,12 +6,14 @@ import time
 from typing import Callable, TypeVar
 from scipy.stats import levy
 
+
 def to_center(var: str):
   return int(var)+0.5
 
 
 def distance(f_X1, f_X2):
   return math.sqrt((f_X1[0] - f_X2[0])**2 + (f_X1[1] - f_X2[1]) ** 2)
+
 
 
 class Node:
@@ -175,6 +177,22 @@ class MPA:
 
     return False
 
+  def random_space(self, s: int, center: list, temp_map: np):
+    random_space = []
+    for i in range(-s, s+1):
+        for j in range(-s, s+1):
+            if i == j == 0:
+                continue
+            x = center[0]+i
+            y = center[1]+j
+            if self.map_size <= x or x < 0 or self.map_size <= y or y < 0:
+              continue
+            if temp_map[x][y] != 0:
+              continue
+            random_space.append([x, y])
+    return random_space
+
+
   def point_collisions(self, x1: int, y1: int, x2: int, y2: int):
     #convert to Node
     node = Node(x1, y1)
@@ -242,9 +260,8 @@ class MPA:
   def normal_search(self, f_sol):
       f_ns_sol = []
       for f_i in f_sol:
-          f_x = rd.randint(-2, 2)
-          f_y = rd.randint(-2, 2)
-          # print(f_x,f_y)
+          f_x = rd.randint(-1, 1)
+          f_y = rd.randint(-1, 1)
           f_ns_sol.append([f_i[0] + f_x, f_i[1] + f_y])
       return f_ns_sol
 
@@ -277,43 +294,29 @@ class MPA:
     old_s = []
     max_d = 0
 
-    # for index in range(10):
-    i = 5
-    limit_rd = (i+1)**2-1
     for index in range(n_child):
       origin_sol = [st]
       temp_map = self.environment.copy()
       temp_map[st[0]][st[1]] = 3
-      limit = 0
-      limit_loop = 0
 
       while self.check_collision(origin_sol[-1], dst):
-        # print(origin_sol[-1])
-        limit_loop += 1
+        rd_values = self.random_space(3,origin_sol[-1],temp_map)
         while True:
-              limit += 1
-              x = origin_sol[-1][0] + rd.randint(-i, i)
-              y = origin_sol[-1][1] + rd.randint(-i, i)
-              if limit > limit_rd:
-                temp_map[origin_sol[-1][0]][origin_sol[-1][1]] = 0
+          if len(rd_values) == 0:
                 origin_sol.pop()
-                limit = 0
                 break
-              if self.map_size <= x or x < 0 or self.map_size <= y or y < 0:
-                continue
-              if temp_map[x][y] == 3 or temp_map[x][y] == 1:
-                  continue
-              if not self.check_collision([x, y], origin_sol[-1]):
-                origin_sol.append([x, y])
-                temp_map[x][y] = 3
-                limit = 0
+          selected = rd.choice(rd_values)
+          rd_values.remove(selected)
+
+          if not self.check_collision(selected, origin_sol[-1]):
+                origin_sol.append(selected)
+                temp_map[selected[0]][selected[1]] = 3
                 break
-        if len(origin_sol) == 0 or limit_loop > 50:
+        if len(origin_sol) == 0:
           origin_sol = [st]
           temp_map = self.environment.copy()
           temp_map[origin_sol[-1][0]][origin_sol[-1][0]] = 3
-          limit = 0
-          limit_loop = 0
+      
       reduce_sol = [st]
       while self.check_collision(reduce_sol[-1], dst):
           i = len(origin_sol) - 1
@@ -349,15 +352,12 @@ class MPA:
     a_prey = np.array(prey)
     
     best_prey.extend([dst for _ in range(max_d-len(best_prey))])
-    # for i in a_prey:
-    #   print(i.T)
-    # return a_prey
     d = max_d
     X_min = np.array([[self.x_min, self.x_min] for _ in range(d)])
     X_max = np.array([[self.x_max, self.x_max] for _ in range(d)])
     prey = np.array(prey)
     old_prey = np.array(prey)
-    loop = 100
+    loop = 50
     levy.a = 1.5
     levy.b = 1
     P = np.array([[0.5, 0.5] for _ in range(d)])
@@ -482,34 +482,3 @@ class MPA:
     final_sol.append(list(dst))
     v_sol, dis_sol = self.calculator(final_sol, st, dst)
     return dis_sol, final_sol, a_prey
-        # if a_prey[i][j] !=prey[i][j]:
-        #   print('another')
-    # for i in range(10):
-    #   a_prey[i]=prey[i]
-    #   a_prey[i] = prey[i]
-    # print(a_prey)
-    # prey = np.array(prey)
-    # print(prey)
-# print(distance((1,1),(2,2)))
-# mpa_obj = MPA('Test/map15_3.txt')
-# print(map_size := mpa_obj.map_size)
-# print(goals:= mpa_obj.goals)
-# print(obstacles := mpa_obj.obstacles)
-# environment = mpa_obj.environment
-# print(environment.T)
-
-# def solve(filename, label, isSolveAll=False):
-#     now = datetime.datetime.now()
-#     start_time = datetime.datetime.timestamp(now)
-#     mpa_sol = MPA(filename)
-#     file_name_sol = "Solutions/map" + str(mpa_sol.map_size) + "_" + str(len(mpa_sol.goals)) + "_sol.txt"
-#     os.makedirs(os.path.dirname(file_name_sol), exist_ok=True)
-#     shutil.copyfile(filename, file_name_sol)
-#     # if isSolveAll:
-#     #     case_map = filename.get()[13:14]
-#     #     file_name_sol = "Solutions\case" + case_map + "_map" + str(mpa_sol.n) + "_" + str(len(mpa_sol.list_dst)) + "_sol.txt"
-#     now = datetime.datetime.now()
-#     end_time = datetime.datetime.timestamp(now)
-#     print(end_time - start_time)
-
-# solve('Test/map15_3.txt','')
