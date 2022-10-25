@@ -1,7 +1,5 @@
 from concurrent.futures import thread
 import math
-from tabnanny import check
-import threading
 from typing import List
 from xmlrpc.client import Boolean
 # from typing_extensions import Self
@@ -10,12 +8,15 @@ import time
 from threading import Thread
 import multiprocessing
 import concurrent.futures as con
+import pygame
+import sys
+import random as rd
 def distance(c1:list,c2:list):
     return math.sqrt((c1[0]- c2[0])**2 + (c1[1] - c2[0]) ** 2)
 
 class ThreadWithReturnValue(Thread):
     def __init__(self, group=None, target=None, name=None,
-                 args=(), kwargs={}, Verbose=None):
+                args=(), kwargs={}, Verbose=None):
         Thread.__init__(self, group, target, name, args, kwargs)
         self._return = None
 
@@ -103,6 +104,7 @@ def check_collision_of_2axis(a: int, b: int, st: List, en: List, environment, ch
             if (test_x%1!=0) and environment[x][y-1] ==1:
                 check[0] = True
                 break
+
     else:
         x_array = (st[0]+1, en[0]) if st[0] < en[0] else (en[0]+1, st[0])
         for x in range(*x_array):
@@ -111,10 +113,29 @@ def check_collision_of_2axis(a: int, b: int, st: List, en: List, environment, ch
                 if environment[x-1][y] == 1:
                     check[0] = True
                     break
+                if a<b:
+                    if environment[st[0]-1][st[1]] == 1:
+                        check[0] = True
+                        break
+
             else:
                 if environment[x][y] == 1:
                     check[0] = True
                     break
+                if a>0:
+                    if environment[st[0]+1][st[1]] == 1:
+                        check[0] = True
+                        break
+                    if environment[st[0]][st[1]+1] == 1:    
+                        check[0] = True
+                        break
+                else:
+                    if environment[en[0]][en[1]+1] == 1:    
+                        check[0] = True
+                        break
+                    if environment[en[0]+1][en[1]] == 1:    
+                        check[0] = True
+                        break
     return check
 
 class Node:
@@ -231,7 +252,7 @@ class Node:
 
 class GridMap:
     def __init__(self,map_size=None,data=[],obstacles=[],empty=[]):
-        self.max_size = map_size
+        self.map_size = map_size
         self.data = data
         self.obstacles = []
         self.empty = []
@@ -248,6 +269,21 @@ class GridMap:
         check = node_1.check_collision(node_2,self.data)
         return check
 
+    def random_space(self, s: int, center: list):
+        random_space = []
+        for i in range(-s, s+1):
+            for j in range(-s, s+1):
+                if i == j == 0:
+                    continue
+                x = center[0]+i
+                y = center[1]+j
+                if self.map_size <= x or x < 0 or self.map_size <= y or y < 0:
+                    continue
+                if self.data[x,y] != 0:
+                    continue
+                random_space.append([x, y])
+        return random_space
+
     def display_matplotlib(self,points:list[list]):
         import matplotlib.pyplot as plt
 
@@ -259,11 +295,11 @@ class GridMap:
             fig, ax = plt.subplots()
             fig.set_size_inches(10,10)
             ax.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
-            ax.set_xlim(0, self.max_size+1)
-            ax.set_ylim(0, self.max_size+1)
-            plt.xticks([*range(self.max_size+1)])
-            plt.yticks([*range(self.max_size+1)])
-            plt.imshow(temp_data.transpose(),origin='lower',extent = (0,self.max_size,0,self.max_size))
+            ax.set_xlim(0, self.map_size+1)
+            ax.set_ylim(0, self.map_size+1)
+            plt.xticks([*range(self.map_size+1)])
+            plt.yticks([*range(self.map_size+1)])
+            plt.imshow(temp_data.transpose(),origin='lower',extent = (0,self.map_size,0,self.map_size))
             plt.plot((node_1.list[0],node_2.list[0]),(node_1.list[1],node_2.list[1]),'--')
             for i in range(3):
                 point_a = node_1.three_corners[i]
@@ -274,12 +310,72 @@ class GridMap:
 
             plt.show(block=False)
             plt.pause(1)
-            plt.close()        
+            plt.close()
+
+    def display_pygame(self,points:list[list]):
+        BLACK = (0, 0, 0)
+        WHITE = (200, 200, 200)
+        YELLOW = (215, 225, 88)
+        GRAY = (150, 150, 100)
+        BLOCKSIZE = 40
+        WINDOW_WIDTH = WINDOW_HEIGHT = self.map_size*BLOCKSIZE
+        pygame.init()
+        SCREEN = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+        CLOCK = pygame.time.Clock()
+        SCREEN.fill(BLACK)
+        point_index = 0
+        limit = len(points)
+        while True:
+            SCREEN.fill(BLACK)
+            temp_data = self.data.copy()
+            c1 = c2 =None
+            if point_index<limit:
+                c1 , c2 = points[point_index]
+                temp_data [c1[0]][c1[1]] = 3
+                temp_data [c2[0]][c2[1]] = 3
+                
+                collision_coordinates, node_1, node_2 = self.collision_coordinates(c1,c2)
+                if not (check:= self.check_collision(c1,c2)):
+                    print(check)
+                for index in collision_coordinates:
+                    temp_data [index[0]][index[1]] = 2
+
+            for x in range(self.map_size):
+                for y in range(self.map_size):
+                    rect = pygame.Rect(x*BLOCKSIZE, y*BLOCKSIZE,
+                                    BLOCKSIZE-1, BLOCKSIZE-1)
+                    if temp_data[x][y] == 1:
+                        pygame.draw.rect(SCREEN, GRAY, rect)
+                    elif temp_data[x][y]==2:
+                        pygame.draw.rect(SCREEN, YELLOW, rect)
+                    elif temp_data[x][y]==3:
+                        pygame.draw.rect(SCREEN, (0,240,0), rect)
+                    else:
+                        pygame.draw.rect(SCREEN, WHITE, rect, 1)
+            
+            if c1 is not None and c2 is not None:
+                pygame.draw.line(SCREEN,(230,0,0),np.array(c1)*BLOCKSIZE,np.array(c2)*BLOCKSIZE,2)
+                for i in range(3):
+                    point_a = np.array(node_1.three_corners[i])*BLOCKSIZE
+                    point_b = np.array(node_2.three_corners[i])*BLOCKSIZE
+                    pygame.draw.line(SCREEN,(230,0,0),point_a,point_b,2)
+            pygame.display.flip()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+            point_index += 1
+            CLOCK.tick(5)
+        
+
+
+
+            
 class Path:
     def __init__(self,path:list[list] = None):
         self.path = path
-        self.amount = len(path)
-        self.distance = self.func_distance(path)
+        self.amount = len(path) if path is not None else 0
+        self.distance = self.func_distance()
 
     def func_distance(self):
         dis = 0
@@ -287,30 +383,53 @@ class Path:
             dis += distance(self.path[index],self.path[index+1])
         return dis
     
-    def random_init(self,environment : GridMap, start:list,end:list):
-        pass
-        # while ()        
+    def random_init(self,environment : GridMap, start:list[int,int],end:list[int,int]):
+        origin_sol = [start]
+        temp_map = environment
+        if temp_map.data[start[0],start[1]]==1 or temp_map.data[end[0],end[1]]==1 :
+            print('start is not node empty')
+            return
+        else:
+            temp_map.data[start[0],start[1]] = 3
+        while(temp_map.check_collision(origin_sol[-1],end)):
+            rd_values = temp_map.random_space(3,origin_sol[-1])
+            while True:
+                if len(rd_values) == 0:
+                    origin_sol.pop()
+                    break
+                selected = rd.choice(rd_values)
+                rd_values.remove(selected)
 
+                if not temp_map.check_collision(selected, origin_sol[-1]):
+                    origin_sol.append(selected)
+                    temp_map.data[selected[0],selected[1]] = 3
+                    break
+
+            if len(origin_sol) == 0:
+                origin_sol = [start]
+                temp_map.data = environment.data
+                temp_map.data[start[0],start[1]] = 3
+        return origin_sol
 data = [
-    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
-    [1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0],
-    [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0],
-    [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0],
-    [0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0],
-    [0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0],
+    [0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0],
+    [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1],
+    [1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1],
     [1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1],
     [0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
     [0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0],
-    [0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]
+    [1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+    [0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ]
 
 environment = GridMap(15,np.array(data).transpose())
-list_point = []
+'''list_point = []
 list_right = []
 list_left = []
 list_top = []
@@ -318,13 +437,34 @@ list_bottom = []
 
 for i in range(15):
     list_right.append([[6, 6], [14, i]])
-    list_left.append([[6, 6], [0, i]])
+    list_left.append([[6, 6], [0, 14-i]])
     list_top.append([[6, 6], [i, 0]])
-    list_bottom.append([[6, 6], [i, 14]])
+    list_bottom.append([[6, 6], [14-i, 14]])
 
 list_point.extend(list_right)
 list_point.extend(list_bottom)
 list_point.extend(list_left)
 list_point.extend(list_top)
 
-environment.display_matplotlib(list_point)
+# environment.display_matplotlib(list_point)
+# environment.display_pygame(list_point)'''
+path = Path()
+origin_sol = path.random_init(environment,[1,2],[7,7])
+import matplotlib.pyplot as plt
+temp_data = environment.data.copy()
+for index in origin_sol:
+    temp_data[index[0],index[1]] = 2
+print(temp_data.T)
+fig, ax = plt.subplots()
+fig.set_size_inches(10,10)
+ax.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
+ax.set_xlim(0, environment.map_size+1)
+ax.set_ylim(0, environment.map_size+1)
+plt.xticks([*range(environment.map_size+1)])
+plt.yticks([*range(environment.map_size+1)])
+plt.imshow(temp_data.transpose(),origin='lower',extent = (0,environment.map_size,0,environment.map_size))
+plt.grid()
+ax.invert_yaxis()
+
+plt.show()
+

@@ -2,7 +2,7 @@ import pygame
 import sys
 import os
 
-sys.path.append(os.path.abspath("/home/miichi/tmpcode/DA/MPA_Path_Planning"))
+sys.path.append(os.path.abspath("/"))
 from modify_code import MPA, Node, distance
 import time
 import random as rd
