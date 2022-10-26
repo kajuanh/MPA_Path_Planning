@@ -269,21 +269,6 @@ class GridMap:
         check = node_1.check_collision(node_2,self.data)
         return check
 
-    def random_space(self, s: int, center: list):
-        random_space = []
-        for i in range(-s, s+1):
-            for j in range(-s, s+1):
-                if i == j == 0:
-                    continue
-                x = center[0]+i
-                y = center[1]+j
-                if self.map_size <= x or x < 0 or self.map_size <= y or y < 0:
-                    continue
-                if self.data[x,y] != 0:
-                    continue
-                random_space.append([x, y])
-        return random_space
-
     def display_matplotlib(self,points:list[list]):
         import matplotlib.pyplot as plt
 
@@ -372,27 +357,48 @@ class GridMap:
 
             
 class Path:
-    def __init__(self,path:list[list] = None):
+    def __init__(self,environment: GridMap,path:list[list] = None):
         self.path = path
         self.amount = len(path) if path is not None else 0
         self.distance = self.func_distance()
-
+        self.environment = environment
     def func_distance(self):
         dis = 0
         for index in range(self.amount-1):
             dis += distance(self.path[index],self.path[index+1])
         return dis
     
-    def random_init(self,environment : GridMap, start:list[int,int],end:list[int,int]):
+    def check_collision(self, c_1: list, c_2: list):
+        return self.environment.check_collision(c_1, c_2)
+    
+    def random_space(self, s: int, center: list, apply_map = None):
+        if apply_map is None:
+            apply_map = self.environment.data
+        random_space = []
+        for i in range(-s, s+1):
+            for j in range(-s, s+1):
+                if i == j == 0:
+                    continue
+                x = center[0]+i
+                y = center[1]+j
+                if self.environment.map_size <= x or x < 0 or self.environment.map_size <= y or y < 0:
+                    continue
+                if apply_map[x,y] != 0:
+                    continue
+                random_space.append([x, y])
+        return random_space
+
+
+    def random_init(self, start: list[int, int], end: list[int, int]):
         origin_sol = [start]
-        temp_map = environment
-        if temp_map.data[start[0],start[1]]==1 or temp_map.data[end[0],end[1]]==1 :
+        temp_map = self.environment.data.copy()
+        if temp_map[start[0],start[1]]==1 or temp_map[end[0],end[1]]==1 :
             print('start is not node empty')
             return
         else:
-            temp_map.data[start[0],start[1]] = 3
-        while(temp_map.check_collision(origin_sol[-1],end)):
-            rd_values = temp_map.random_space(3,origin_sol[-1])
+            temp_map[start[0],start[1]] = 3
+        while(self.check_collision(origin_sol[-1],end)):
+            rd_values = self.random_space(2,origin_sol[-1],temp_map)
             while True:
                 if len(rd_values) == 0:
                     origin_sol.pop()
@@ -400,16 +406,49 @@ class Path:
                 selected = rd.choice(rd_values)
                 rd_values.remove(selected)
 
-                if not temp_map.check_collision(selected, origin_sol[-1]):
+                if not self.check_collision(selected, origin_sol[-1]):
                     origin_sol.append(selected)
-                    temp_map.data[selected[0],selected[1]] = 3
+                    temp_map[selected[0],selected[1]] = 3
                     break
 
             if len(origin_sol) == 0:
                 origin_sol = [start]
                 temp_map.data = environment.data
                 temp_map.data[start[0],start[1]] = 3
-        return origin_sol
+        reduce_sol = [start]
+        index = 0
+        l_origin_sol = len(origin_sol)
+        while  self.check_collision(reduce_sol[-1], end):
+            for i in range(index,l_origin_sol):
+                if self.check_collision(origin_sol[i], reduce_sol[-1]):
+                    reduce_sol.append(origin_sol[i-1])
+                    index = i
+                    break
+        print(reduce_sol)
+        # while self.check_collision(reduce_sol[-1], end):
+        #     i = len(origin_sol) - 1
+        #     while self.check_collision(reduce_sol[-1], origin_sol[i]):
+        #         i -= 1
+        #     reduce_sol.append(origin_sol[i])
+        # pre_sol = start
+        # reduce_sol.pop(0)
+        # reduce_sol.append(end)
+        # iPrey = []
+        # d_min = 2
+        # for sol in reduce_sol:
+        #     loop = int(distance(pre_sol, sol) / d_min)
+        #     for i in range(1, loop):
+        #         print(i)
+        #         x = round(pre_sol[0] + (sol[0] - pre_sol[0]) * i / loop)
+        #         y = round(pre_sol[1] + (sol[1] - pre_sol[1]) * i / loop)
+        #         if self.check_collision(pre_sol, [x, y]) or self.check_collision([x, y], sol):
+        #             continue
+        #         iPrey.append([x, y])
+        #     iPrey.append(sol)
+        #     pre_sol = sol
+        # iPrey.pop()
+        # print(iPrey)
+        return reduce_sol
 data = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0],
@@ -448,13 +487,14 @@ list_point.extend(list_top)
 
 # environment.display_matplotlib(list_point)
 # environment.display_pygame(list_point)'''
-path = Path()
-origin_sol = path.random_init(environment,[1,2],[7,7])
+path = Path(environment)
+origin_sol = path.random_init([1,2],[7,7])
 import matplotlib.pyplot as plt
 temp_data = environment.data.copy()
+print(temp_data.T)
 for index in origin_sol:
     temp_data[index[0],index[1]] = 2
-print(temp_data.T)
+# print(temp_data.T)
 fig, ax = plt.subplots()
 fig.set_size_inches(10,10)
 ax.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
