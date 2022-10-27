@@ -2,6 +2,7 @@ from concurrent.futures import thread
 import math
 from typing import List
 from xmlrpc.client import Boolean
+import matplotlib
 # from typing_extensions import Self
 import numpy as np
 import time
@@ -29,68 +30,107 @@ class ThreadWithReturnValue(Thread):
         Thread.join(self, *args)
         return self._return
 
+
 def cdn_of_2axis(a: int, b: int, st: List, en: List, environment):
     coordinates = []
-    if abs(a)==abs(b):
+
+    if abs(a) == abs(b):
+        if a*b > 0:
+            if a > 0:
+                if environment[st[0]][st[1]] == 1:
+                    coordinates.append([st[0], st[1]])
+            else:
+                if environment[en[0]][en[1]] == 1:
+                    coordinates.append([en[0], en[1]])
+        else:
+            if a < 0:
+                if environment[st[0]-1][st[1]] == 1:
+                    coordinates.append([st[0]-1, st[1]])
+            else:
+                if environment[en[0]-1][en[1]] == 1:
+                    coordinates.append([en[0]-1, en[1]])
+
         x_array = (st[0]+1, en[0]) if st[0] < en[0] else (en[0]+1, st[0])
         for x in range(*x_array):
             y = math.floor(((x-st[0])/a)*b + st[1])
-            if a*b<0:
+            if a*b < 0:
                 if environment[x-1][y] == 1:
                     coordinates.append([x-1, y])
-                if a<b:
-                    if environment[st[0]-1][st[1]] == 1:
-                        coordinates.append([st[0]-1, st[1]])
             else:
                 if environment[x][y] == 1:
                     coordinates.append([x, y])
-                if a>0:
-                    if environment[st[0]+1][st[1]] == 1:
-                        coordinates.append([st[0]+1, st[1]])
-                    if environment[st[0]][st[1]+1] == 1:    
-                        coordinates.append([st[0], st[1]+1])
-                else:
-                    if environment[en[0]][en[1]+1] == 1:    
-                        coordinates.append([en[0],en[1]+1])
-                    if environment[en[0]+1][en[1]] == 1:    
-                        coordinates.append([en[0]+1,en[1]])
 
-                    
-    else:           
+    else:
         # with xaxis
         x_array = (st[0]+1, en[0]) if st[0] < en[0] else (en[0]+1, st[0])
         for x in range(*x_array):
             test_y = ((x-st[0])/a)*b + st[1]
             y = math.floor(test_y)
-            if environment[x][y] == 1 and test_y%1!=0:
+            if environment[x][y] == 1 and test_y % 1 != 0:
                 coordinates.append([x, y])
-            if (test_y%1!=0) and environment[x-1][y] ==1:
+            if (test_y % 1 != 0) and environment[x-1][y] == 1:
                 coordinates.append([x-1, y])
         # with yaxis
         y_array = (st[1]+1, en[1]) if st[1] < en[1] else (en[1]+1, st[1])
         for y in range(*y_array):
             test_x = (((y-st[1])/b)*a + st[0])
             x = math.floor(test_x)
-            if environment[x][y] == 1 and test_x%1!=0:
+            if environment[x][y] == 1 and test_x % 1 != 0:
                 coordinates.append([x, y])
-            if (test_x%1!=0) and environment[x][y-1] ==1:
+            if (test_x % 1 != 0) and environment[x][y-1] == 1:
                 coordinates.append([x, y-1])
     return list(set(tuple(x) for x in coordinates))
 
+
 def check_collision_of_2axis(a: int, b: int, st: List, en: List, environment, check: bool):
-    if check[0]: 
+    if check[0]:
         return check
 
-    if abs(a)!=abs(b):
+    if abs(a) == abs(b):
+        if a*b > 0:
+            if a > 0:
+                if environment[st[0]][st[1]] == 1:
+                    check[0] = True
+
+            else:
+                if environment[en[0]][en[1]] == 1:
+                    check[0] = True
+
+        else:
+            if a < 0:
+                if environment[st[0]-1][st[1]] == 1:
+                    check[0] = True
+
+            else:
+                if environment[en[0]-1][en[1]] == 1:
+                    check[0] = True
+
+        if check[0]:
+            return check
+
+        x_array = (st[0]+1, en[0]) if st[0] < en[0] else (en[0]+1, st[0])
+        for x in range(*x_array):
+            y = math.floor(((x-st[0])/a)*b + st[1])
+            if a*b < 0:
+                if environment[x-1][y] == 1:
+                    check[0] = True
+                    break
+
+            else:
+                if environment[x][y] == 1:
+                    check[0] = True
+                    break
+
+    else:
         # with xaxis
         x_array = (st[0]+1, en[0]) if st[0] < en[0] else (en[0]+1, st[0])
         for x in range(*x_array):
             test_y = ((x-st[0])/a)*b + st[1]
             y = math.floor(test_y)
-            if environment[x][y] == 1 and test_y%1!=0:
+            if environment[x][y] == 1 and test_y % 1 != 0:
                 check[0] = True
                 break
-            if (test_y%1!=0) and environment[x-1][y] ==1:
+            if (test_y % 1 != 0) and environment[x-1][y] == 1:
                 check[0] = True
                 break
         # with yaxis
@@ -98,44 +138,12 @@ def check_collision_of_2axis(a: int, b: int, st: List, en: List, environment, ch
         for y in range(*y_array):
             test_x = (((y-st[1])/b)*a + st[0])
             x = math.floor(test_x)
-            if environment[x][y] == 1 and test_x%1!=0:
-                check[0]= True
-                break
-            if (test_x%1!=0) and environment[x][y-1] ==1:
+            if environment[x][y] == 1 and test_x % 1 != 0:
                 check[0] = True
                 break
-
-    else:
-        x_array = (st[0]+1, en[0]) if st[0] < en[0] else (en[0]+1, st[0])
-        for x in range(*x_array):
-            y = int(((x-st[0])/a)*b + st[1])
-            if a*b<0:
-                if environment[x-1][y] == 1:
-                    check[0] = True
-                    break
-                if a<b:
-                    if environment[st[0]-1][st[1]] == 1:
-                        check[0] = True
-                        break
-
-            else:
-                if environment[x][y] == 1:
-                    check[0] = True
-                    break
-                if a>0:
-                    if environment[st[0]+1][st[1]] == 1:
-                        check[0] = True
-                        break
-                    if environment[st[0]][st[1]+1] == 1:    
-                        check[0] = True
-                        break
-                else:
-                    if environment[en[0]][en[1]+1] == 1:    
-                        check[0] = True
-                        break
-                    if environment[en[0]+1][en[1]] == 1:    
-                        check[0] = True
-                        break
+            if (test_x % 1 != 0) and environment[x][y-1] == 1:
+                check[0] = True
+                break
     return check
 
 class Node:
@@ -269,7 +277,7 @@ class GridMap:
         check = node_1.check_collision(node_2,self.data)
         return check
 
-    def display_matplotlib(self,points:list[list]):
+    def display_matplotlib(self,points:list[list],time = 100):
         import matplotlib.pyplot as plt
 
         for c1,c2 in points:
@@ -294,7 +302,7 @@ class GridMap:
             ax.invert_yaxis()
 
             plt.show(block=False)
-            plt.pause(1)
+            plt.pause(time)
             plt.close()
 
     def display_pygame(self,points:list[list]):
@@ -357,20 +365,47 @@ class GridMap:
 
             
 class Path:
-    def __init__(self,environment: GridMap,path:list[list] = None):
+    def __init__(self,environment: GridMap,path:list[list[list]] = None):
         self.path = path
-        self.amount = len(path) if path is not None else 0
-        self.distance = self.func_distance()
+        if path is not None:
+            self.amount = len(path)  
+            self.distance = self.func_distance(path)
+        else:
+            self.amount = self.distance = 0
         self.environment = environment
-    def func_distance(self):
+    def func_distance(self,path:list[list[list]]):
         dis = 0
-        for index in range(self.amount-1):
-            dis += distance(self.path[index],self.path[index+1])
+        for index in range(len(path)-1):
+            dis += distance(path[index],path[index+1])
         return dis
     
     def check_collision(self, c_1: list, c_2: list):
         return self.environment.check_collision(c_1, c_2)
     
+    def shorten(self,origin_sol:list[list[list]],start:list[list],end:list[list]):
+        reduce_sol = [start]
+        index = 0
+        l_origin_sol = len(origin_sol)
+        temp_sol = None
+        while self.check_collision(reduce_sol[-1], end):
+            for i in range(index, l_origin_sol):
+                if not self.check_collision(origin_sol[i], reduce_sol[-1]):
+                    temp_sol = origin_sol[i]
+                    index = i+1
+            reduce_sol.append(temp_sol)
+        origin_sol = reduce_sol
+        reduce_sol = [end]
+        index = len(origin_sol)-1
+        while self.check_collision(reduce_sol[-1], start):
+            for i in range(index, 0, -1):
+                if not self.check_collision(origin_sol[i], reduce_sol[-1]):
+                    temp_sol = origin_sol[i]
+                    index = i-1
+            reduce_sol.append(temp_sol)
+        reduce_sol.reverse()
+        reduce_sol.insert(0, start)
+        return reduce_sol
+
     def random_space(self, s: int, center: list, apply_map = None):
         if apply_map is None:
             apply_map = self.environment.data
@@ -413,42 +448,71 @@ class Path:
 
             if len(origin_sol) == 0:
                 origin_sol = [start]
-                temp_map.data = environment.data
+                temp_map.data = self.environment.data
                 temp_map.data[start[0],start[1]] = 3
-        reduce_sol = [start]
-        index = 0
-        l_origin_sol = len(origin_sol)
-        while  self.check_collision(reduce_sol[-1], end):
-            for i in range(index,l_origin_sol):
-                if self.check_collision(origin_sol[i], reduce_sol[-1]):
-                    reduce_sol.append(origin_sol[i-1])
-                    index = i
-                    break
-        print(reduce_sol)
-        # while self.check_collision(reduce_sol[-1], end):
-        #     i = len(origin_sol) - 1
-        #     while self.check_collision(reduce_sol[-1], origin_sol[i]):
-        #         i -= 1
-        #     reduce_sol.append(origin_sol[i])
-        # pre_sol = start
-        # reduce_sol.pop(0)
-        # reduce_sol.append(end)
-        # iPrey = []
-        # d_min = 2
-        # for sol in reduce_sol:
-        #     loop = int(distance(pre_sol, sol) / d_min)
-        #     for i in range(1, loop):
-        #         print(i)
-        #         x = round(pre_sol[0] + (sol[0] - pre_sol[0]) * i / loop)
-        #         y = round(pre_sol[1] + (sol[1] - pre_sol[1]) * i / loop)
-        #         if self.check_collision(pre_sol, [x, y]) or self.check_collision([x, y], sol):
-        #             continue
-        #         iPrey.append([x, y])
-        #     iPrey.append(sol)
-        #     pre_sol = sol
-        # iPrey.pop()
-        # print(iPrey)
+        reduce_sol = self.shorten(origin_sol,start,end)
         return reduce_sol
+
+class MPAs:
+    def __init__(self,environment:GridMap):
+        self.environment = environment
+        self.class_path = Path(self.environment)
+        
+    def check_collision(self, c_1, c_2):
+        return self.environment.check_collision(c_1, c_2)
+
+    def init_population(self, n_child: int, start, end):
+        origin_sol = []
+        for _ in range(n_child):
+            origin_sol.append(self.class_path.random_init(start, end))
+        return origin_sol
+
+    def calculator(self, f_sol, f_st, f_dst):
+        s = 0
+        is_dst = False
+        pre_x = f_st
+        for f_x in f_sol:
+            if self.check_collision(pre_x, f_x):
+                return 1, s
+            s += distance(pre_x, f_x)
+            if not self.check_collision(f_x, f_dst):
+                s += distance(f_x, f_dst)
+                is_dst = True
+                break
+            pre_x = f_x
+        if not is_dst:
+            if self.check_collision(f_sol[-1], f_dst):
+                return 1, s
+            s += distance(f_sol[-1], f_dst)
+        return 0, s
+
+    def way(self, st, dst):
+        n_child = self.environment.map_size
+        min_s = math.inf
+        prey = []
+        best_prey = []
+        old_s = []
+        max_d = 0
+
+        if not self.environment.check_collision(st, dst):
+            return distance(st, dst), [st, dst]
+        origin_sol = self.init_population(n_child, st, dst)
+        for iPrey in origin_sol:
+            sol_d = len(iPrey)
+            if max_d < sol_d:
+                max_d = sol_d
+            v, dis_prey = self.calculator(iPrey, st, dst)
+            old_s.append(dis_prey)
+            prey.append(iPrey)
+            if min_s > dis_prey:
+                min_s = dis_prey
+                best_prey = list(iPrey)
+            for i in prey:
+                i.extend([dst for _ in range(max_d-len(i))])
+            a_prey = np.array(prey)
+        print('best_prey:', best_prey)
+        print('a_prey:', a_prey.T)
+
 data = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0],
@@ -487,24 +551,47 @@ list_point.extend(list_top)
 
 # environment.display_matplotlib(list_point)
 # environment.display_pygame(list_point)'''
-path = Path(environment)
-origin_sol = path.random_init([1,2],[7,7])
+# environment.display_matplotlib([[[5,5],[6,6]],
+#                                 [[6,6],[5,5]],
+#                                 [[8,7],[9,6]],
+#                                 [[9,6],[8,7]]])
 import matplotlib.pyplot as plt
+def draw_line(points:list[list],plt:matplotlib.pyplot):
+    xl = []
+    yl = []
+    for point in points:
+        xl.append(point[0]+0.5)
+        yl.append(point[1]+0.5)
+    plt.plot(xl,yl,'-')
+
+# path = Path(environment)
 temp_data = environment.data.copy()
-print(temp_data.T)
-for index in origin_sol:
-    temp_data[index[0],index[1]] = 2
 # print(temp_data.T)
+# print(temp_data.T)
+st = time.time()
+mpa_obj = MPAs(environment)
+origin_sol = mpa_obj.init_population(environment.map_size,[1,2],[11,11])
+en = time.time()
+print(en-st)
+print(len(origin_sol))
 fig, ax = plt.subplots()
 fig.set_size_inches(10,10)
+
 ax.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
 ax.set_xlim(0, environment.map_size+1)
 ax.set_ylim(0, environment.map_size+1)
 plt.xticks([*range(environment.map_size+1)])
 plt.yticks([*range(environment.map_size+1)])
+for points in origin_sol:
+    draw_line(points,plt)
 plt.imshow(temp_data.transpose(),origin='lower',extent = (0,environment.map_size,0,environment.map_size))
 plt.grid()
 ax.invert_yaxis()
 
-plt.show()
+plt.show(block=False)
+plt.pause(10)
+st = time.time()
+mpa_obj.way([1, 2], [11, 11])
+en = time.time()
+print(en-st)
 
