@@ -1,4 +1,3 @@
-from sre_constants import SUCCESS
 from threading import Thread
 from scipy.stats import levy
 from typing import List
@@ -178,11 +177,20 @@ class GridMap:
         self.data = data
         self.obstacles = []
         self.empty = []
+        self.map_collision = np.zeros((map_size,map_size,map_size,map_size))
 
     def check_collision(self, c_1: list, c_2: list):
+        if self.map_collision[c_1[0],c_1[1]][c_2[0],c_2[1]] == 1:
+            return True
+        elif self.map_collision[c_1[0],c_1[1]][c_2[0],c_2[1]] == 2:
+            return False
         node_1 = Node(*c_1)
         node_2 = Node(*c_2)
         check = node_1.check_collision(node_2, self.data)
+        if check:
+            self.map_collision[c_1[0],c_1[1]][c_2[0],c_2[1]] = 1
+        else:
+            self.map_collision[c_1[0],c_1[1]][c_2[0],c_2[1]] = 2
         return check
 
     def shorten(self, origin_sol: list[list[list]], start: list[list], end: list[list]):
@@ -230,12 +238,14 @@ class GridMap:
         origin_sol = [start]
         temp_map = self.data.copy()
         if temp_map[start[0], start[1]] == 1 or temp_map[end[0], end[1]] == 1:
-            print('start is not node empty')
+            print('start or end is not node empty')
             return
         else:
             temp_map[start[0], start[1]] = 3
         while (self.check_collision(origin_sol[-1], end)):
+            # print('running')
             rd_values = self.random_space(2, origin_sol[-1], temp_map)
+            # print(rd_values)
             while True:
                 if len(rd_values) == 0:
                     origin_sol.pop()
@@ -250,8 +260,8 @@ class GridMap:
 
             if len(origin_sol) == 0:
                 origin_sol = [start]
-                temp_map.data = self.environment.data
-                temp_map.data[start[0], start[1]] = 3
+                temp_map = self.data.copy()
+                temp_map[start[0], start[1]] = 3
         reduce_sol = self.shorten(origin_sol, start, end)
         return reduce_sol
 
@@ -384,7 +394,7 @@ class MPAs(GridMap):
             return distance(st, dst), [st, dst]
 
         origin_sol = self.init_population(n_child, st, dst)
-        print('success init_population')
+
         for iPrey in origin_sol:
             sol_d = len(iPrey)
             if max_d < sol_d:
@@ -523,4 +533,32 @@ class MPAs(GridMap):
         v_sol, dis_sol = self.calculator(final_sol, st, dst)
         print('best with start: ', dis_sol, final_sol)
         return dis_sol, final_sol, a_prey
+
+import matplotlib
+import matplotlib.pyplot as plt
+def draw_line(points:list[list],plt:matplotlib.pyplot):
+    xl = []
+    yl = []
+    for point in points:
+        xl.append(point[0]+0.5)
+        yl.append(point[1]+0.5)
+    plt.plot(xl,yl,'-')
+
+def display(temp_data,map_size,final_sol,plt):
+    
+    fig, ax = plt.subplots()
+    fig.set_size_inches(10,10)
+
+    ax.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
+    ax.set_xlim(0, map_size)
+    ax.set_ylim(0, map_size)
+    plt.xticks([*range(map_size)])
+    plt.yticks([*range(map_size)])
+    draw_line(final_sol,plt)
+    plt.imshow(temp_data.transpose(),origin='lower',extent = (0,map_size,0,map_size))
+    plt.grid()
+    ax.invert_yaxis()
+
+    plt.show(block=False)
+    plt.pause(10)
 
