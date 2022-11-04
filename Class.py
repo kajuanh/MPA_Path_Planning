@@ -179,7 +179,27 @@ class GridMap:
         self.empty = []
         self.map_collision = np.zeros((map_size,map_size,map_size,map_size))
 
+    def check_outside(self,x:int)->bool:
+        if x<0 or x>=self.map_size:
+            return True
+        else:
+            return False
+
+    def check_list_outside(self,xs:list)->bool:
+        for x in xs:
+            if self.check_outside(x):
+                return True
+        return False
+
     def check_collision(self, c_1: list, c_2: list):
+        if c_1 == c_2:
+            if self.data[c_1[0],c_1[1]] == 1:
+                return True
+            return False
+
+        if self.check_list_outside([c_1[0], c_1[1], c_2[0], c_2[1]]):
+            return True
+
         if self.map_collision[c_1[0],c_1[1]][c_2[0],c_2[1]] == 1:
             return True
         elif self.map_collision[c_1[0],c_1[1]][c_2[0],c_2[1]] == 2:
