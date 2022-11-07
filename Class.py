@@ -97,6 +97,24 @@ def check_collision_of_2axis(a: int, b: int, st: List, en: List, environment, ch
                 break
     return check
 
+def remove_duplicate(path :list[list]):
+    duplicate = True
+    while duplicate:
+        length = len(path)
+        index_l = index_r = None
+        for cdn in path:
+            if path.count(cdn)>1:
+                index_l = path.index(cdn)
+                index_r = length - 1 - path[::-1].index(cdn)
+                break
+        if index_l is not None and index_r is not None:
+            temp = path[:index_l]
+            temp.extend(path[index_r:])
+            path = temp
+        else:
+            duplicate = False
+    return path
+
 class Node:
     def __init__(self, x: int, y: int) -> None:
         '''a node have coordinates (x,y)
@@ -192,7 +210,7 @@ class GridMap:
         return False
 
     def check_collision(self, c_1: list, c_2: list):
-        if c_1 == c_2:
+        if c_1[0] == c_2[0] and c_1[1]==c_2[1]:
             if self.data[c_1[0],c_1[1]] == 1:
                 return True
             return False
@@ -212,30 +230,97 @@ class GridMap:
         else:
             self.map_collision[c_1[0],c_1[1]][c_2[0],c_2[1]] = 2
         return check
+    
+    def remove_no_connection(self,path :list[list],end:list[int]):
+        len_list = len(path)
+        remove_index = []
+        for i in range(1,len_list-1):
+            if self.check_collision(path[i],path[i-1]) and self.check_collision(path[i],path[i+1]):
+                remove_index.append(i)
+        if self.check_collision(path[-1],end) and self.check_collision(path[-1],path[-2]):
+                remove_index.append(len_list-1)
+        remove_index.reverse()
+        for i in remove_index:
+            path.pop(i)
+        return path
 
-    def shorten(self, origin_sol: list[list[list]], start: list[list], end: list[list]):
-        reduce_sol = [start]
-        index = 0
-        l_origin_sol = len(origin_sol)
-        temp_sol = None
-        while self.check_collision(reduce_sol[-1], end):
-            for i in range(index, l_origin_sol):
-                if not self.check_collision(origin_sol[i], reduce_sol[-1]):
-                    temp_sol = origin_sol[i]
-                    index = i+1
-            reduce_sol.append(temp_sol)
-        origin_sol = reduce_sol
-        reduce_sol = [end]
-        index = len(origin_sol)-1
-        while self.check_collision(reduce_sol[-1], start):
-            for i in range(index, 0, -1):
-                if not self.check_collision(origin_sol[i], reduce_sol[-1]):
-                    temp_sol = origin_sol[i]
-                    index = i-1
-            reduce_sol.append(temp_sol)
-        reduce_sol.reverse()
-        # reduce_sol.insert(0, start)
-        return reduce_sol
+
+    # def shorten(self, origin_sol: list[list[list]], start: list[list], end: list[list]):
+    #     reduce_sol = [start]
+    #     index = 0
+    #     l_origin_sol = len(origin_sol)
+    #     temp_sol = None
+    #     while self.check_collision(reduce_sol[-1], end):
+    #         for i in range(index, l_origin_sol):
+    #             if not self.check_collision(origin_sol[i], reduce_sol[-1]):
+    #                 temp_sol = origin_sol[i]
+    #                 index = i+1
+    #         reduce_sol.append(temp_sol)
+    #     origin_sol = reduce_sol
+    #     reduce_sol = [end]
+    #     index = len(origin_sol)-1
+    #     while self.check_collision(reduce_sol[-1], start):
+    #         for i in range(index, 0, -1):
+    #             if not self.check_collision(origin_sol[i], reduce_sol[-1]):
+    #                 temp_sol = origin_sol[i]
+    #                 index = i-1
+    #         reduce_sol.append(temp_sol)
+    #     reduce_sol.reverse()
+    #     # reduce_sol.insert(0, start)
+    #     return reduce_sol
+    def shorten(self, path: list[list[int,int]],start: list[int,int],end: list[int,int]):
+        len_list = len(path)
+        index_l = 0
+        index_r = len_list-1
+        for i in range(len_list):
+            if path[i][0]==start[0]and path[i][1]==start[1]:
+                index_l = i+1
+        for j in range(index_r,-1,-1):
+            if path[j][0]==end[0] and path[j][1]==end[1]:
+                index_r = j-1
+        path_trip = path[index_l:index_r+1]
+        path_trip = self.remove_no_connection(path_trip,end)
+        path_trip = remove_duplicate(path_trip)
+        len_list = len(path_trip)
+        index_l = tem_id = 0
+        index_r = len_list-1
+        left = [start]
+        right = [end]
+        t=0
+        while t<100 and self.check_collision(left[-1],right[-1]):
+            far_l = near_r = None
+            for i in range(index_l, index_r+1):
+                if not self.check_collision(left[-1], path_trip[i]) and not (left[-1][0] == path_trip[i][0] and left[-1][1] == path_trip[i][1]):
+                    far_l = path_trip[i]
+                    tem_id = i+1
+            if far_l is not None:
+                left.append(far_l)
+                index_l = tem_id
+
+            if left[-1][0]==right[-1][0] and left[-1][1]==right[-1][1] or not self.check_collision(left[-1],right[-1]):
+                break
+
+            for j in range(index_r,index_l-1,-1):
+                if not self.check_collision(right[-1], path_trip[j]) and not (right[-1][0] == path_trip[j][0] and right[-1][1] == path_trip[j][1]) :
+                    near_r = path_trip[j]
+                    tem_id = j-1
+            if near_r is not None:
+                right.append(near_r)
+                index_r = tem_id
+            
+            if left[-1][0]==right[-1][0] and left[-1][1]==right[-1][1]or not self.check_collision(left[-1],right[-1]):
+                break
+            t+=1
+        if t==100:
+            print(path)
+            raise('loi')
+        if left[-1][0]==right[-1][0] and left[-1][1]==right[-1][1]:
+            right.pop()
+        left.pop(0)
+        right.reverse()
+        left.extend(right)
+        left = remove_duplicate(left)
+        return left
 
     def random_space(self, s: int, center: list, apply_map=None):
         if apply_map is None:
@@ -257,6 +342,8 @@ class GridMap:
     def random_init(self, start: list[int, int], end: list[int, int]):
         origin_sol = [start]
         temp_map = self.data.copy()
+        limit = 1000
+        lim = 0
         if temp_map[start[0], start[1]] == 1 or temp_map[end[0], end[1]] == 1:
             print('start or end is not node empty')
             return
@@ -277,11 +364,13 @@ class GridMap:
                     origin_sol.append(selected)
                     temp_map[selected[0], selected[1]] = 3
                     break
-
-            if len(origin_sol) == 0:
+                
+            if len(origin_sol) == 0 or lim>limit:
                 origin_sol = [start]
                 temp_map = self.data.copy()
                 temp_map[start[0], start[1]] = 3
+                lim = 0
+            lim += 1
         reduce_sol = self.shorten(origin_sol, start, end)
         return reduce_sol
 

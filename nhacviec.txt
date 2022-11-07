@@ -1,0 +1,4 @@
+nhiem vu xem lai code thuat toan MPA noi ro y tuong va vi du minh hoa
+da co MPA-GA can  xay dung MPA - A*  so sanh voi MPA GA
+test trong truong hop 3 dinh, 4 dinh va 5 dinh giua MPA-Ga va MPA-A*
+show ket qua cho co

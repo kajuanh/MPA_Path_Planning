@@ -1,606 +1,233 @@
 import sys, os, math
 sys.path.append(os.path.abspath(""))
-from mytempcode_MPA.initialization import initialization
-from mytempcode_MPA.levy import levy as levys
 from modify_code import distance, MPA
-from scipy.stats import levy
-import random as rd
-import numpy as np
-from Class import GridMap
-import matplotlib.pyplot as plt
-import matplotlib
 from Class import MPAs
 
-environment = MPA('Test/map15_3.txt')
+environment = MPA('Test/map30_7.txt')
 mpa_obj = MPAs(environment.map_size,environment.environment)
-# tl = len(mpa_obj.empty)/len(mpa_obj.obstacles)
-data = [
-[[1, 2], [1, 0], [14, 0], [14, 3], [12, 5], [8, 5], [6, 7], [6, 13], [10, 14], [12, 12], [11, 11]],
-[[1, 2], [0, 2], [2, 0], [13, 0], [14, 4], [7, 6], [7, 7], [5, 9], [7, 14], [12, 14], [11, 11]],
-[[1, 2], [0, 6], [2, 5], [6, 5], [6, 12], [10, 14], [11, 13], [11, 11]],
-[[1, 2], [1, 0], [14, 0], [14, 5], [9, 5], [6, 8], [6, 14], [11, 14], [11, 11]],
-[[1, 2], [1, 5], [9, 5], [6, 8], [6, 14], [12, 14], [11, 11]],
-[[1, 2], [0, 6], [2, 5], [8, 5], [7, 7], [5, 9], [7, 14], [11, 13], [11, 11]],
-[[1, 2], [1, 0], [12, 0], [13, 1], [13, 5], [10, 5], [7, 6], [5, 10], [7, 13], [11, 14], [11, 11]],
-[[1, 2], [0, 6], [2, 5], [6, 5], [6, 11], [9, 14], [11, 14], [11, 11]],
-[[1, 2], [0, 2], [2, 0], [13, 0], [13, 4], [8, 6], [6, 8], [6, 13], [11, 14], [11, 11]],
-[[1, 2], [0, 1], [2, 0], [14, 0], [13, 4], [8, 6], [5, 9], [7, 13], [11, 14], [11, 11]],
-[[1, 2], [1, 5], [6, 5], [6, 12], [8, 14], [12, 14], [11, 11]],
-[[1, 2], [0, 0], [14, 0], [13, 4], [9, 6], [6, 5], [6, 14], [11, 13], [11, 11]],
-[[1, 2], [0, 3], [2, 5], [9, 5], [8, 6], [7, 8], [5, 8], [6, 14], [12, 14], [11, 11]],
-[[1, 2], [1, 4], [2, 5], [9, 5], [5, 9], [6, 14], [12, 13], [11, 11]],
-[[1, 2], [1, 0], [12, 0], [14, 1], [13, 4], [7, 6], [5, 10], [9, 14], [11, 14], [11, 11]],
-]
-def draw_line(points:list[list],plt:matplotlib.pyplot):
-    xl = []
-    yl = []
-    for point in points:
-        xl.append(point[0]+0.5)
-        yl.append(point[1]+0.5)
-    plt.plot(xl,yl,'-')
 
-def display(temp_data,final_sol,plt):
-    
-    fig, ax = plt.subplots()
-    fig.set_size_inches(10,10)
-
-    ax.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
-    ax.set_xlim(0, environment.map_size+1)
-    ax.set_ylim(0, environment.map_size+1)
-    plt.xticks([*range(environment.map_size+1)])
-    plt.yticks([*range(environment.map_size+1)])
-    draw_line(final_sol,plt)
-    plt.imshow(temp_data.transpose(),origin='lower',extent = (0,environment.map_size,0,environment.map_size))
-    plt.grid()
-    ax.invert_yaxis()
-
-    plt.show(block=False)
-    plt.pause(10)
-
-def cdn_id(x,y,map_size):
-    '''covert coordinates to index node'''
-    if x<0 or x>map_size or y<0 or y> map_size:
-        raise('not in (0,%d)'%map_size)
-    return (y*15+x)
-
-
-def id_cdn(id, map_size):
-    if id < 0 or id > map_size**map_size:
-        '''covert coordinates to index node'''
-        raise ('not in (0,%d^2)' % map_size)
-    return id % map_size,id//map_size 
-
-def length_line_and_clt(coordinates:list):
-    length = 0
-    clt = 0
-    for index in range(len(coordinates)-1):
-        if environment.check_collision(coordinates[index],coordinates[index]):
-            clt = 1
-            break
-        length+=distance(coordinates[index],coordinates[index+1])
-    return clt,length
-
-def calculator_node(self, f_sol, f_st, f_dst):
-    cdn_sol = f_sol
-    f_sol = []
-    for sol in cdn_sol:
-        f_sol.append(id_cdn(sol,self.map_size))
-    s = 0
-    # s = distance(f_sol[0],f_st)+distance(f_sol[-1],f_dst)
-    # o = 0
-    # if self.check_collision(f_sol[0],f_st):
-    #     o+=1
-    # if self.check_collision(f_sol[-1],f_dst):
-    #     o+=1
-    
-    # for index in range(len(f_sol)-1):
-    #     if self.check_collision(f_sol[index],f_sol[index+1]):
-    #         o+=1
-    #     s+= distance(f_sol[index],f_sol[index+1])
-    # return s+o*tl
-    is_dst = False
-    pre_x = f_st
-    for f_x in f_sol:
-        if self.check_collision(pre_x, f_x):
-            return 1, s
-        s += distance(pre_x, f_x)
-        if not self.check_collision(f_x, f_dst):
-            s += distance(f_x, f_dst)
-            is_dst = True
-            break
-        pre_x = f_x
-    if not is_dst:
-        if self.check_collision(f_sol[-1], f_dst):
-            return 1, s
-        s += distance(f_sol[-1], f_dst)
-    return 0, s
-
-
-def func_fit(line: np):
-    coordinates = []
-
-    for node in line:
-        coordinates.append(id_cdn(node, 15))
-    return length_line_and_clt(coordinates)
-
-        
-def covert_list_to_index_node(points: list):
-    resuilt = []
-    for point in points:
-        resuilt.append(cdn_id(*point,map_size=15))
-    return resuilt
-def covert_list_index_to_coordinates(ids:list):
-    coordinates = []
-    for index in ids:
-        coordinates.append(id_cdn(index, 15))
-    return coordinates
-
-
-
-
-def full_data(data:list[list[list]],end:list[list]):
-    max_len = 0
-    for line in data:
-        if line[0] == start:
-            line.pop(0)
-
-        if line[-1]==end:
-            line.pop(-1)
-
-        if (len_line:=len(line))>max_len:
-            max_len = len_line
-    
-    for line in data:
-        line.extend([end]*(max_len-len(line)))
-    return data, max_len
-
-start = [1,2]
-end = [11,11]
-data, dim = full_data(data,end)
-
-data = np.array(data,dtype=int)
-def display_data(data):
-    for i in data:
-        display_line_array(i)
-def display_line_array(line):
-    s = ''
-    for j in line:
-        s +='[%-2s %-2s]  '%(j[0],j[1])
-    print(s)
-
-def nan_to_zeros(x:np):
-    
-    for i in range(x.shape[0]):
-        x[i] = 0 if np.isnan(x[i]) else x[i]
-    return x
-
-# display_data(data)
-Prey = data
-SearchAgents_no = 15
-lb = 0
-ub = SearchAgents_no-1
-Max_iter = 60
-Xmin = np.ones((SearchAgents_no, dim),dtype=int)*lb
-Xmax = np.ones((SearchAgents_no, dim),dtype=int)*ub
-Top_predator_pos = np.zeros((dim, 2),dtype=int)
-Top_predator_fit = math.inf
-# print('Top_predator_pos :')
-# display_line_array(Top_predator_pos)
-# print('Top_predator_fit',Top_predator_pos)
-# print('Xmax',Xmax)
-# print('Xmin',Xmin)
-Convergence_curve = np.zeros((1, Max_iter))
-stepsize_x = np.zeros((SearchAgents_no, dim))
-stepsize_y = np.zeros((SearchAgents_no, dim))
-
-fitness = np.full((SearchAgents_no, 1), np.inf)
-# print('Convergence_curve',Convergence_curve)
-# print('stepsize',stepsize)
-# print('fitness',fitness)
-levy.a = 1.5
-levy.b = 1
-Iter = 0
-FADs = 0.2
-P = 0.5
-for Iter in range(38):
-    for i in range(SearchAgents_no):
-
-        Flag4ubx = (Prey[i, :,0] > ub).astype(int)
-        Flag4lbx = (Prey[i, :,0] < lb).astype(int)
-        Flag4uby = (Prey[i, :,1] > ub).astype(int)
-        Flag4lby = (Prey[i, :,1] < lb).astype(int)
-
-        Prey[i, :, 0] = (Prey[i, :, 0]*(np.logical_not(Flag4ubx +
-                        Flag4lbx).astype(int))+ub*Flag4ubx+lb*Flag4lbx)
-        Prey[i, :, 1] = (Prey[i, :, 1]*(np.logical_not(Flag4uby +
-                        Flag4lby).astype(int))+ub*Flag4uby+lb*Flag4lby)
-        v,dis_prey = mpa_obj.calculator(Prey[i, :].tolist(), start, end) 
-
-        if v == 0:
-            fitness[i, 0] = dis_prey
-        elif v==1:
-            fitness[i, 0] = math.inf
-        else:
-            print(v,dis_prey,Prey[i, :])
-        if (fitness[i, 0] < Top_predator_fit):
-            Top_predator_fit = fitness[i, 0]
-
-            Top_predator_pos = Prey[i].copy()
-    # print(Top_predator_pos.T)
-    if Iter == 0:
-        fit_old = fitness.copy()
-        Prey_old = Prey.copy()
-
-    Inx = np.zeros((fitness.shape[0],1))
-    for i in range(fitness.shape[0]):
-        if(fit_old[i] < fitness[i]):
-            Inx[i] = 0
-        else:
-            Inx[i] = 1
-
-    Indx = np.full((Inx.shape[0], dim), Inx).astype(int)
-    Prey[:,:,0] = Indx*Prey_old[:,:,0] + np.logical_not(Indx).astype(int) * Prey[:,:,0]
-    Prey[:,:,1] = Indx*Prey_old[:,:,1] + np.logical_not(Indx).astype(int) * Prey[:,:,1]
-    with np.errstate(invalid='ignore'):
-        fitness =Inx*fit_old + nan_to_zeros((np.logical_not(Inx).astype(int) * fitness))
-
-    fit_old = fitness.copy()
-    Prey_old = Prey.copy()
-        
-
-    Elite = np.full((SearchAgents_no, *Top_predator_pos.shape), Top_predator_pos,dtype=int)  # %(Eq. 10)
-
-    CF = (1-Iter/Max_iter)**(2*Iter/Max_iter)
-    RLX = np.array(levy.rvs(0, 1, (SearchAgents_no, dim)))
-    RLY = np.array(levy.rvs(0, 1, (SearchAgents_no, dim)))
-    RBX = np.random.normal(0, 1, (SearchAgents_no, dim))
-    RBY = np.random.normal(0, 1, (SearchAgents_no, dim))
-    for i in range(SearchAgents_no):
-        for j in range(dim):
-            R = rd.uniform(0, 1)
-            # print('R',R)
-            #  %------------------ Phase 1 (Eq.12) -------------------
-            if Iter < Max_iter/3:
-                stepsize_x[i, j] = RBX[i, j] * (Elite[i, j, 0]-RBX[i, j]*Prey[i, j, 0])
-                stepsize_y[i, j] = RBY[i, j] * (Elite[i, j, 1]-RBY[i, j]*Prey[i, j, 1])
-
-                Prey[i, j, 0] = Prey[i, j, 0]+(P*R*stepsize_x[i, j])
-                Prey[i, j, 1] = Prey[i, j, 1]+(P*R*stepsize_y[i, j])
-                # print('stepsize[%d, %d]'%(i,j),stepsize[i, j])
-
-            # %--------------- Phase 2 (Eqs. 13 & 14)----------------
-            elif (Iter > Max_iter/3) and (Iter < 2*Max_iter/3):
-                if i > Prey.shape[0]/2:
-                    stepsize_x[i, j] = RBX[i, j] * (Elite[i, j, 0]-RBX[i, j]*Prey[i, j, 0])
-                    stepsize_y[i, j] = RBY[i, j] * (Elite[i, j, 1]-RBY[i, j]*Prey[i, j, 1])
-
-                    Prey[i, j, 0] = Elite[i, j, 0]+P*CF*stepsize_x[i, j]
-                    Prey[i, j, 1] = Elite[i, j, 1]+P*CF*stepsize_x[i, j]
-                else:
-                    stepsize_x[i, j] = RLX[i, j] * (Elite[i, j, 0]-RLX[i, j]*Prey[i, j, 0])
-                    stepsize_y[i, j] = RLY[i, j] * (Elite[i, j, 1]-RLY[i, j]*Prey[i, j, 1])
-                    Prey[i, j, 0] = Prey[i, j, 0] + P*CF*stepsize_x[i, j]
-                    Prey[i, j, 1] = Prey[i, j, 1] + P*CF*stepsize_x[i, j]
-
-            # #  %----------------- Phase 3 (Eq. 15)-------------------
-            # else:
-            #     stepsize[i, j] = RL[i, j]*(RL[i, j]*Elite[i, j]-Prey[i, j])
-            #     Prey[i, j] = Elite[i, j]+2/(P*CF*stepsize[i, j])
-    # display_data(Prey)
-    for i in range(SearchAgents_no):
-        dis_prey = np.inf
-        Flag4ubx = (Prey[i, :,0] > ub).astype(int)
-        Flag4lbx = (Prey[i, :,0] < lb).astype(int)
-        Flag4uby = (Prey[i, :,1] > ub).astype(int)
-        Flag4lby = (Prey[i, :,1] < lb).astype(int)
-
-        Prey[i, :, 0] = (Prey[i, :, 0]*(np.logical_not(Flag4ubx +
-                        Flag4lbx).astype(int))+ub*Flag4ubx+lb*Flag4lbx)
-        Prey[i, :, 1] = (Prey[i, :, 1]*(np.logical_not(Flag4uby +
-                        Flag4lby).astype(int))+ub*Flag4uby+lb*Flag4lby)
-        v,dis_prey = mpa_obj.calculator(Prey[i, :].tolist(), start, end) 
-
-        if v == 0:
-            fitness[i, 0] = dis_prey
-            
-        elif v==1:
-            fitness[i, 0] = np.inf
-        else:
-            print(v,dis_prey,Prey[i, :])
-
-        if (fitness[i, 0] < Top_predator_fit):
-            
-            Top_predator_fit = fitness[i, 0].copy()
-            Top_predator_pos = Prey[i].copy()
-
-    # print('Top_predator_pos:')
-
-    # display_line_array(Top_predator_pos)
-    # print('fitness',fitness)
-    if Iter == 0:
-        fit_old = fitness.copy()
-        Prey_old = Prey.copy()
-
-    Inx = np.zeros((fitness.shape[0],1))
-    for i in range(fitness.shape[0]):
-        if(fit_old[i] < fitness[i]):
-            Inx[i] = 0
-        else:
-            Inx[i] = 1
-
-    Indx = np.full((Inx.shape[0], dim), Inx).astype(int)
-
-    Prey[:,:,0] = Indx*Prey_old[:,:,0] + np.logical_not(Indx).astype(int) * Prey[:,:,0]
-    Prey[:,:,1] = Indx*Prey_old[:,:,1] + np.logical_not(Indx).astype(int) * Prey[:,:,1]
-
-    with np.errstate(invalid='ignore'):
-        fitness =Inx*fit_old + nan_to_zeros((np.logical_not(Inx).astype(int) * fitness))
-    Prey_old = Prey.copy()
-    # #  %---------- Eddy formation and FADs� effect (Eq 16) -----------
-    # if rd.uniform(0, 1) < FADs:
-    #     U = np.random.rand(SearchAgents_no, dim) < FADs
-    #     Prey[:,:,0] = Prey[:,:,0]+CF * ((Xmin+np.random.rand(SearchAgents_no, dim)*(Xmax-Xmin))*U)
-    #     Prey[:,:,1] = Prey[:,:,1]+CF * ((Xmin+np.random.rand(SearchAgents_no, dim)*(Xmax-Xmin))*U)
-    # else:
-    #     r = rd.uniform(0, 1)
-    #     Rs = Prey.shape[0]
-    #     stepsize_x = (FADs*(1-r)+r)*(Prey[np.random.permutation(Rs), :,0]-Prey[np.random.permutation(Rs), :,0])
-    #     stepsize_y = (FADs*(1-r)+r)*(Prey[np.random.permutation(Rs), :,1]-Prey[np.random.permutation(Rs), :,1])
-    #     Prey[:,:,0] = Prey[:,:,0]+stepsize_x
-    #     Prey[:,:,1] = Prey[:,:,1]+stepsize_y
-    # # Iter = Iter+1
-    Convergence_curve[:, Iter-1] = Top_predator_fit
-
-# print('Prey')
-# display_data(Prey)
-# print('Prey_old')
-# display_data(Prey_old)
-# print('fit_old', fit_old.T)
-# print('fitness', fitness.T)
-print(Top_predator_pos.T)
-print('Top_predator_pos')
-display_line_array(Top_predator_pos)
-print('Top_predator_fit',Top_predator_fit)
-print('Convergence_curve', Convergence_curve)
 # path = Top_predator_pos.tolist()
 # path = mpa_obj.shorten(path, [1, 2], [11, 11])
 # print(path)
 # path = [[1, 5],  [6,  5],  [6, 12], [8, 14],  [
 #     11, 13], [11, 11], [9, 9], [6, 6], [7, 7]]
 # path = [0, 4], [6,  5], [4, 10], [7,  13], [9,  11],[8,  8],[1,  1],[11, 11],[5,  5]
-path = [[1,  5 ]  ,[6 , 5 ],  [6 , 12] , [7 , 13]  ,[11, 13] , [12 ,12] , [0 , 0 ] ,[3,5], [11 ,11] , [11, 11] ]
-# print(mpa_obj.calculator(path,[1,1],[11,11]))
+# clr# print(mpa_obj.calculator(path,[1,1],[11,11]))
 # print(path_short := mpa_obj.shorten(path,start,end))
 # print(mpa_obj.calculator(path_short,[1,1],[11,11]))
 
 # def shorten(list,st,en):
-len_list = len(path)
-print(len_list)
+# len_list = len(path)
+# print(len_list)
 
-print(len_list)
-remove_index = []
-for i in range(1,len_list-1):
-    print(i)
-    if mpa_obj.check_collision(path[i],path[i-1]) and mpa_obj.check_collision(path[i],path[i+1]):
-        remove_index.append(i)
+# print(len_list)
+# remove_index = []
+# for i in range(1,len_list-1):
+#     print(i)
+#     if mpa_obj.check_collision(path[i],path[i-1]) and mpa_obj.check_collision(path[i],path[i+1]):
+#         remove_index.append(i)
 
-for i in range(len(remove_index)):
-    print(path[remove_index[i-i]])
-    path.pop(remove_index[i-i])
+# for i in range(len(remove_index)):
+#     print(path[remove_index[i-i]])
+#     path.pop(remove_index[i-i])
 # if mpa_obj.check_collision(path[0],start) and mpa_obj.check_collision(path[0],path[1]):
     
 # for x in remove_index:
 #     path.pop(x)
 # print(path)
-
-len_list = len(path)
-right = [start]
-left = [end]
-limit = 100
-index_r = t=0
-index_l = len_list-1 
-while t < limit and (mpa_obj.check_collision(right[-1], left[-1])):
-    max_r = max_l = math.inf
-    temp_sol_r = temp_sol_l = None
-    for i in range(index_r, len_list):
-        if not mpa_obj.check_collision(path[i], right[-1]):# and (dist := distance(path[i], right[-1])) < max_r:
-            temp_sol_r = path[i]
-            # max_r = dist
-            index_r = i+1
-    if temp_sol_r is not None:
-        right.append(temp_sol_r)
-    if right[-1] == left[-1]:
-        break
-    for j in range(index_l, -1, -1):
-        if not mpa_obj.check_collision(path[j], left[-1]):# and (max_l := distance(path[i], left[-1])) < max_l:
-            temp_sol_l = path[j]
-            # max_l = dist
-            index_l = j-1
-    if temp_sol_l is not None:
-        left.append(temp_sol_l)
-    if right[-1] == left[-1]:
-        break
-    t += 1
-
-print(right)
-
-print(left)
-left.reverse()
-print(right[1:])
-if right[-1]==left[0]:
-    if len(left)>1:
-        right.extend(left[1:])
-else:
-    right.extend(left)
-print(right)
-
-    # for i in range(len_list):
-    #     print(list[i])
-    #     print(list[len_list-i])
-
-display(mpa_obj.data,right,plt)
-print(mpa_obj.check_collision([7,13],[11,11]))
-'''
-end_node = cdn_id(11,11,15)
-data_node = []
-    data_node.append(covert_list_to_index_node(line))
-# print(data_node)
-# print(max_len)
-# frmt = "{:>10}"*max_len
-for line in data_node:
-    line.extend([end_node]*(max_len-len(line)))
-st = [1,2]
-dst = [11,11]
-# for i in data_node:
-#     print('\t'.join(str(x)for x in i))
-Prey=np.array(data_node,dtype=np.int64)
-# print(Prey.shape)
-# print('Prey',Prey)
-# print('func_fit',func_fit(Prey[1,:]))
-# so_sanh = initialization(11,15,0,15**2)
-dim = max_len
-SearchAgents_no = 15
-lb = 0
-ub = SearchAgents_no**2-1
-Max_iter = 50
-# so_sanh = initialization(SearchAgents_no, dim, ub, lb)
-
-# print(so_sanh)
-# print(so_sanh.shape)
-Xmin = np.ones((SearchAgents_no, dim),dtype=np.int64)*lb
-Xmax = np.ones((SearchAgents_no, dim),dtype=np.int64)*ub
-Top_predator_pos = np.zeros((1, dim),dtype=np.int64)
-Top_predator_fit = math.inf
-
-Convergence_curve = np.zeros((1, Max_iter))
-stepsize = np.zeros((SearchAgents_no, dim))
-fitness = np.full((SearchAgents_no, 1), np.inf)
-levy.a = 1.5
-levy.b = 1
-Iter = 0
-FADs = 0.2
-P = 0.5
-while Iter<Max_iter:
-    for i in range(SearchAgents_no):
-        Flag4ub = (Prey[i, :] > ub).astype(np.int64)
-        Flag4lb = (Prey[i, :] < lb).astype(np.int64)
-
-        Prey[i, :] = (Prey[i, :]*(np.logical_not(Flag4ub+Flag4lb).astype(int))+ub*Flag4ub+lb*Flag4lb)
+def remove_no_connection(self,path :list[list],end:list[int]):
+    len_list = len(path)
+    remove_index = []
+    for i in range(1,len_list-1):
+        if self.check_collision(path[i],path[i-1]) and mpa_obj.check_collision(path[i],path[i+1]):
+            remove_index.append(i)
+    if mpa_obj.check_collision(path[-1],end) and mpa_obj.check_collision(path[-1],path[-2]):
+            remove_index.append(len_list-1)
+    remove_index.reverse()
+    for i in remove_index:
+        path.pop(i)
         
-        v,dis_prey = calculator(environment,Prey[i, :].tolist(), st, dst) 
-        if v == 0:
-            fitness[i, 0] = dis_prey
-        if (fitness[i, 0] < Top_predator_fit):
-            Top_predator_fit = fitness[i, 0]
-            Top_predator_pos = Prey[i].reshape((Top_predator_pos.shape))
-        # display(environment.data,covert_list_index_to_coordinates(Top_predator_pos[0]),plt)
-    # %------------------- Marine Memory saving1 -------------------
+    # for x in remove_index:
+    #     path.pop(x)
+    return path
 
-    if Iter == 0:
-        fit_old = fitness
-        Prey_old = Prey
-
-    Inx = np.zeros(fitness.shape[0]).reshape(fitness.shape[0], 1)
-    for i in range(fitness.shape[0]):
-        if(fit_old[i] < fitness[i]):
-            Inx[i] = 0
+def remove_duplicate(path :list[list]):
+    duplicate = True
+    while duplicate:
+        length = len(path)
+        index_l = index_r = None
+        for cdn in path:
+            if path.count(cdn)>1:
+                index_l = path.index(cdn)
+                index_r = length - 1 - path[::-1].index(cdn)
+                break
+        if index_l is not None and index_r is not None:
+            temp = path[:index_l]
+            temp.extend(path[index_r:])
+            path = temp
         else:
-            Inx[i] = 1
+            duplicate = False
+    return path
 
-    Indx = np.full((Inx.shape[0], dim), Inx).astype(np.int64)
-    Prey = Indx*Prey_old + np.logical_not(Indx).astype(np.int64) * Prey
-    fitness = Inx*fit_old + np.logical_not(Inx).astype(np.int64) * fitness
-    fit_old = fitness
-    Prey_old = Prey
+def shorten(self, path: list[list[int,int]],start: list[int,int],end: list[int,int]):
+    len_list = len(path)
+    index_l = 0
+    index_r = len_list-1
+    print(index_r)
+    for i in range(len_list):
+        if path[i][0]==start[0]and path[i][1]==start[1]:
+            index_l = i+1
+    for j in range(index_r,-1,-1):
+        if path[j][0]==end[0] and path[j][1]==end[1]:
+            index_r = j-1
+    path_trip = path[index_l:index_r+1]
+    path_trip = remove_no_connection(self,path_trip,end)
+    print(path_trip)
+    path_trip = remove_duplicate(path_trip)
+    len_list = len(path_trip)
+    index_l = tem_id = 0
+    index_r = len_list-1
+    left = [start]
+    right = [end]
+    t=0
+    while t<10 and self.check_collision(left[-1],right[-1]):
+        far_l = near_r = None
+        for i in range(index_l, index_r+1):
+            # print(path_trip[i])
+            if not self.check_collision(left[-1], path_trip[i]) and not (left[-1][0] == path_trip[i][0] and left[-1][1] == path_trip[i][1]):
+                far_l = path_trip[i]
+                tem_id = i+1
+        if far_l is not None:
+            left.append(far_l)
+            index_l = tem_id
 
-    Elite = np.full((SearchAgents_no, Top_predator_pos.shape[1]), Top_predator_pos,dtype=np.int64)  # %(Eq. 10)
-    CF = (1-Iter/Max_iter)**(2*Iter/Max_iter)
-    RL = np.array(levy.rvs(0, 1,(SearchAgents_no, dim)))
-    # print(RL)
-    RB = np.random.normal(0, 1, (SearchAgents_no, dim))
-    for i in range(Prey.shape[0]):
-        for j in range(Prey.shape[1]):
-            R = rd.uniform(0, 1)
-            # print('R',R)
-            #  %------------------ Phase 1 (Eq.12) -------------------
-            if Iter < Max_iter/3:
-                stepsize[i, j] = RB[i, j]*(Elite[i, j]-RB[i, j]*Prey[i, j])
-                # print('stepsize[%d, %d]'%(i,j),stepsize[i, j])
+        if left[-1][0]==right[-1][0] and left[-1][1]==right[-1][1] or not self.check_collision(left[-1],right[-1]):
+            break
 
-                Prey[i, j] = Prey[i, j]+2/(P*R*stepsize[i, j])
-            # %--------------- Phase 2 (Eqs. 13 & 14)----------------
-            elif (Iter > Max_iter/3) and (Iter < 2*Max_iter/3):
-                if i > Prey.shape[0]/2:
-                    stepsize[i, j] = RB[i, j] * \
-                        (RB[i, j]*Elite[i, j]-Prey[i, j])
-                    print(P*R*stepsize[i, j])
-                    Prey[i, j] = Elite[i, j]+2/(P*CF*stepsize[i, j])
-                else:
-                    stepsize[i, j] = RL[i, j] * \
-                        (Elite[i, j]-RL[i, j]*Prey[i, j])
-                    print(P*R*stepsize[i, j])
+        for j in range(index_r,index_l-1,-1):
+            print(path_trip[j])
+            if not self.check_collision(right[-1], path_trip[j]) and not (right[-1][0] == path_trip[j][0] and right[-1][1] == path_trip[j][1]) :
+                near_r = path_trip[j]
+                tem_id = j-1
+        if near_r is not None:
+            right.append(near_r)
+            index_r = tem_id
+        
+        if left[-1][0]==right[-1][0] and left[-1][1]==right[-1][1]or not self.check_collision(left[-1],right[-1]):
+            break
+        t+=1
+        # print(index_l,index_r)
+        print('left',left)
+        print('right',right)
+    if t==10:
+        print(path)
+        raise('loi')
+    if left[-1][0]==right[-1][0] and left[-1][1]==right[-1][1]:
+        right.pop()
+    left.pop(0)
+    right.reverse()
+    left.extend(right)
+    left = remove_duplicate(left)
+    return left
 
-                    Prey[i, j] = Prey[i, j]+2/(P*CF*stepsize[i, j])
-                    
-            #  %----------------- Phase 3 (Eq. 15)-------------------
-            else:
-                stepsize[i, j] = RL[i, j]*(RL[i, j]*Elite[i, j]-Prey[i, j])
-                Prey[i, j] = Elite[i, j]+2/(P*CF*stepsize[i, j])
-    # %------------------- Detecting top predator2 -----------------
-    for i in range(Prey.shape[0]):
-        Flag4ub = (Prey[i, :] > ub).astype(int)
-        Flag4lb = (Prey[i, :] < lb).astype(int)
-        Prey[i, :] = (Prey[i, :]*(np.logical_not(Flag4ub+Flag4lb).astype(int))+ub*Flag4ub+lb*Flag4lb)
-
-        v,dis_prey = calculator(environment,Prey[i, :].tolist(), st, dst) 
-        if v == 0:
-            fitness[i, 0] = dis_prey
-
-        if(fitness[i, 0] < Top_predator_fit):
-            Top_predator_fit = fitness[i, 0]
-            Top_predator_pos = Prey[i].reshape((Top_predator_pos.shape))
-    # %---------------------- Marine Memory saving2 ----------------
-    if Iter == 0:
-        fit_old = fitness
-        Prey_old = Prey
-        # print('fit_old_0', fit_old)
-    Inx = np.zeros(fitness.shape[0]).reshape(fitness.shape[0], 1)
-    for i in range(fitness.shape[0]):
-        if(fit_old[i] < fitness[i]):
-            Inx[i] = 0
-        else:
-            Inx[i] = 1
-    # print(Inx)
-    Indx = np.full((Inx.shape[0], dim), Inx).astype(int)
-    Prey = Indx*Prey_old + np.logical_not(Indx).astype(int) * Prey
-    fitness = Inx*fit_old + np.logical_not(Inx).astype(int) * fitness
-    fit_old = fitness
-    Prey_old = Prey
-
-    #  %---------- Eddy formation and FADs� effect (Eq 16) -----------
-    # if rd.uniform(0, 1) < FADs:
-    #     U = np.random.rand(SearchAgents_no, dim) < FADs
-    #     Prey = Prey+CF * \
-    #         ((Xmin+np.random.rand(SearchAgents_no, dim)*(Xmax-Xmin))*U)
-    # else:
-    #     r = rd.uniform(0, 1)
-    #     Rs = Prey.shape[0]
-    #     stepsize = (
-    #         FADs*(1-r)+r)*(Prey[np.random.permutation(Rs), :]-Prey[np.random.permutation(Rs), :])
-    #     Prey = Prey+stepsize
-    Iter = Iter+1
-    Convergence_curve[:, Iter-1] = Top_predator_fit
-    # print('fitness', fitness)
-
-# print({'Top_predator_fit': Top_predator_fit, 'Top_predator_pos': Top_predator_pos, 'Convergence_curve': Convergence_curve, })
-print('Top_predator_fit', Top_predator_fit)
-print('Top_predator_pos', Top_predator_pos)
-print('Convergence_curve', Convergence_curve)
-print()
-path = environment.shorten(covert_list_index_to_coordinates(Top_predator_pos[0]),[1,2],[11,11])
-print(path)
-path.insert(0,[1,2])
-display(environment.data,path,plt)
-print(calculator(environment,covert_list_to_index_node(path),[1,2],[11,11]))
-display(environment.data,path,plt)
-'''
+# display(mpa_obj.data,right,plt)
+# print(mpa_obj.check_collision([7,13],[11,11]))
+start = [12,1]
+end = [23,6]
+path_2 = [(12, 1), [13, 1], [14, 1], [16, 1], [18, 0], [20, 2], [20, 3], [19, 4], [18, 4], [17, 3], [16, 3], [16, 5], [16, 4], [15, 4], [17, 4], [17, 2], [19, 1], [20, 0], [22, 0], [21, 1], [20, 1], [22, 2], [20, 4], [19, 3], [21, 5], [23, 5], [24, 4], [
+    24, 2], [23, 3], [23, 4], [24, 5], [22, 7], [23, 7], [21, 6], [22, 6], [20, 5], [20, 7], [21, 8], [20, 6], [18, 5], [19, 6], [19, 8], [19, 7], [18, 6], [20, 8], [22, 8], [24, 7], [24, 8], [23, 6], [23, 8], [23, 10], [22, 9], [23, 9], [21, 11]]
+print(environment.goals)
+path_3=[(12, 1), [14, 1], [15, 1], [17, 1]]
+path_4 = [(12, 1), [11, 1], [13, 1], [14, 1], [15, 1], 
+        [16, 1], [18, 0], [18, 2], [17, 4], [16, 3], 
+        [18, 4], [16, 4], [16, 2], [18, 1], [18, 3],
+        [20, 5], [19, 7], [18, 6], [18, 7], [19, 6], 
+        [21, 4], [19, 3], [20, 4], [22, 5], [22, 6], 
+        [24, 4], [23, 5], [24, 5], [22, 4], [20, 2], 
+        [22, 1], [20, 0], [22, 2], [23, 3], [21, 1], 
+        [22, 3], [20, 1], [21, 3], [21, 5], [23, 6], 
+        [21, 6], [23, 4], [21, 2], [21, 0], [19, 1], 
+        [17, 1], [19, 0], [17, 2], [19, 2], [17, 3], 
+        [18, 5], [20, 6], [22, 8], [20, 7], [22, 7], 
+        [20, 8], [21, 8], [21, 7], [21, 9], [21, 10], 
+        [23, 8], [24, 7], [24, 6], [23, 7], [22, 9], 
+        [23, 9], [23, 10], [23, 12], [22, 10], [24, 12], 
+        [24, 13], [23, 15], [25, 15], [23, 13], [25, 14], 
+        [24, 14], [24, 15], [22, 14], [20, 13], [20, 11]]
+path_5  = [(12, 1), [14, 1], [13, 1], [15, 1], [16, 1], [18, 0], 
+        [20, 1], [21, 1], [20, 2], [18, 2], [16, 0], [17, 0], 
+        [18, 1], [19, 3], [19, 2], [17, 4], [16, 3], [18, 3], 
+        [16, 4], [18, 6], [17, 5], [18, 7], [19, 6], [18, 4], 
+        [19, 5], [17, 3], [16, 5], [16, 6], [16, 7], [17, 9], 
+        [15, 8], [17, 8], [19, 8], [20, 7], [21, 7], [23, 5], 
+        [23, 6], [22, 8], [22, 6], [24, 7], [24, 5], [22, 3], 
+        [23, 2], [21, 2], [22, 4], [23, 3], [24, 2], [24, 3], 
+        [22, 2], [20, 4], [21, 5], [22, 5], [20, 6], [20, 8], 
+        [18, 8], [18, 10], [16, 9], [15, 7], [17, 7], [18, 5], 
+        [20, 5], [22, 7], [21, 9], [23, 9], [22, 11], [23, 11], 
+        [25, 13], [24, 14], [22, 12], [22, 13], [24, 15], [22, 15], 
+        [23, 14], [22, 16], [23, 15], [21, 14], [23, 13], [21, 11], 
+        [21, 13], [21, 15], [21, 16], [22, 14], [20, 16], [20, 14], 
+        [21, 12], [23, 12], [22, 10], [22, 9], [21, 10], [23, 8], 
+        [21, 6], [19, 4], [20, 3], [21, 4], [21, 3], [23, 4], [24, 6], 
+        [24, 8], [23, 7], [21, 8], [19, 7], [17, 6], [16, 8], [14, 8], 
+        [12, 7], [11, 7], [13, 7], [14, 9], [14, 10], [13, 8], [15, 10], 
+        [13, 9], [12, 11], [10, 13], [8, 11], [6, 9], [8, 9], [7, 7], 
+        [8, 8], [6, 8], [6, 7], [8, 7], [7, 8], [5, 8], [7, 10], [7, 12], 
+        [7, 11], [9, 13], [9, 12], [8, 12], [7, 13], [5, 13], [5, 15], 
+        [3, 15], [4, 13], [5, 12], [5, 14], [6, 16], [8, 14], [7, 16], 
+        [6, 14], [6, 15], [4, 14], [2, 16], [2, 15], [3, 17], [3, 16], 
+        [4, 15], [5, 17], [6, 17], [5, 16], [7, 17], [9, 17], [8, 18], 
+        [9, 20], [7, 20], [9, 19], [8, 21], [8, 23], [6, 22], [8, 22], 
+        [6, 20], [7, 19], [7, 21], [6, 21], [7, 22], [7, 23], [9, 21], 
+        [9, 22], [8, 20], [7, 18], [8, 17], [8, 15], [8, 13], [9, 11], 
+        [10, 12], [10, 11], [12, 12], [12, 14], [13, 12], [13, 11], 
+        [12, 13], [11, 12], [11, 14], [11, 15], [12, 15], [13, 15], 
+        [14, 15], [15, 14], [14, 16], [16, 15], [15, 15], [13, 17], 
+        [12, 16], [13, 14], [15, 16], [17, 15], [16, 14], [16, 16], 
+        [16, 18], [14, 18], [14, 17], [16, 17], [17, 19], [16, 20], 
+        [16, 22], [18, 23], [17, 22], [18, 21], [16, 19], [18, 20], 
+        [17, 20], [15, 18], [13, 16], [14, 14], [14, 12], [16, 13], 
+        [17, 11], [16, 10], [17, 10], [18, 11], [18, 12], [18, 14], 
+        [20, 13], [19, 12], [18, 13], [17, 13], [16, 12], [17, 12], 
+        [19, 13], [20, 12], [19, 14], [18, 16], [18, 17], [18, 15], 
+        [17, 14], [19, 16], [19, 15], [17, 16], [19, 17], [17, 17], 
+        [17, 18], [15, 17], [13, 18], [15, 19], [15, 20], [17, 21], 
+        [15, 22], [14, 23], [13, 22], [12, 22], [14, 20], [16, 21], 
+        [18, 22], [19, 20], [21, 19], [23, 20]]
+path_6 = [[1, 5], [6, 5], [6, 12], [7, 13], [11, 13], [8, 8], [9, 9], [1, 1], [10, 10]]
+path_8 = [
+    (1, 14), [0, 16], [2, 16], [1, 16], [2, 15], [4, 15], [5, 13], [5, 12], [6, 11],
+    [6, 13], [8, 15], [6, 17], [7, 16], [5, 17], [6, 16], [8, 17], [8, 19], [10, 19],
+    [8, 21], [8, 22], [9, 22], [7, 21], [7, 20], [6, 20], [8, 20], [9, 21], [9, 20], 
+    [11, 20], [12, 19], [13, 21], [15, 23], [16, 23], [14, 21], [14, 19], [13, 20], 
+    [13, 22], [12, 20], [12, 21], [13, 23], [13, 24], [11, 23], [12, 25], [11, 25], 
+    [11, 24], [13, 25], [14, 26], [13, 28], [13, 29], [12, 27], [13, 27], [13, 26], 
+    [12, 24], [12, 26], [14, 28], [15, 27], [17, 29], [16, 27], [16, 29], [17, 28], 
+    [19, 27], [18, 27], [17, 27], [18, 28], [16, 26], [17, 26], [15, 28], [15, 26], 
+    [17, 24], [16, 24], [16, 22], [15, 22], [17, 21], [17, 20], [15, 21], [16, 21], 
+    [17, 22], [18, 23], [18, 22], [19, 23], [19, 22], [19, 20], [21, 20], [21, 21], 
+    [23, 19], [22, 21], [23, 22], [23, 23], [25, 21], [27, 22], [29, 23], [27, 23], 
+    [28, 21], [28, 19], [27, 21], [26, 22], [26, 24], [27, 26], [26, 26], [24, 26], 
+    [24, 24], [24, 25], [23, 25], [25, 27], [25, 26], [27, 28], [27, 29], [28, 29], 
+    [27, 27], [28, 28], [28, 27], [26, 29], [26, 27], [24, 27], [24, 29], [24, 28], 
+    [23, 26], [23, 24], [24, 23], [25, 22], [25, 23], [24, 21], [22, 19], [23, 21], 
+    [25, 19], [26, 19], [24, 20], [22, 22], [24, 22], [26, 20], [26, 21], [28, 20], 
+    [27, 19], [25, 20], [24, 19], [22, 20], [21, 22], [23, 20], [21, 19], [19, 19], 
+    [17, 19], [16, 17]]
+# print (shorten(mpa_obj,path_2, start,end))
+# print (shorten(mpa_obj,path_1, start,end))
+# print (shorten(mpa_obj,path_5, [12,1],[23,23]))
+# print(path_3)
+# print(path_2[1:2])
+# print(mpa_obj.check_collision([6,12],[7,13]))
+list = [[1,2],[4,5],[2,5],[1,3],[2,5],[7,8]]
+path_7=[[1, 5], [6, 5], [6, 12], [8, 14], [11, 13], [10, 10], [10, 10], [7, 7], [6, 6]]
+# print (shorten(mpa_obj,path_5, [12,1],[23,23]))
+print (shorten(mpa_obj,path_8, [1,14],[18,17]))
+# print(list[-2])
+# print(mpa_obj.shorten(path_8, [1,2],[11,11]))
+# print (remove_no_connection(mpa_obj,path_6,[11,11]))
+# path_trip = [[6, 12]]
+# left = [[6, 5]]
+# print(not(left[-1][0] == path_trip[0][0] and left[-1][1] == path_trip[0][1]))
