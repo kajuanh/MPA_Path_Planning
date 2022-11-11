@@ -5,17 +5,17 @@ import random as rd
 import numpy as np
 import time
 from datetime import datetime
-mutation_rate = 0.3
-map_tsp = [
-    [0, 27.485281374238575, 29.128990204491963, 17.064495102245978],
-    [27.485281374238575, 0, 10.828427124746192, 10.242640687119286],
-    [29.128990204491963, 10.828427124746192, 0, 12.064495102245981],
-    [17.064495102245978, 10.242640687119286, 12.064495102245981, 0]
-]
-n_population = 10
-n_cities = len(map_tsp)
+# mutation_rate = 0.3
+# map_tsp = [
+#     [0, 27.485281374238575, 29.128990204491963, 17.064495102245978],
+#     [27.485281374238575, 0, 10.828427124746192, 10.242640687119286],
+#     [29.128990204491963, 10.828427124746192, 0, 12.064495102245981],
+#     [17.064495102245978, 10.242640687119286, 12.064495102245981, 0]
+# ]
+# n_population = 10
+# n_cities = len(map_tsp)
 # print(n_cities)
-def genesis(city_list, n_population):
+def genesis(city_list, n_population, n_cities):
 
     population_set = []
     for i in range(n_population):
@@ -26,21 +26,23 @@ def genesis(city_list, n_population):
 names_list =np.array([0,1,2,3])
 # population_set = genesis(names_list, n_population)
 # print(population_set)
-def fitness_eval(city_list, map_tsp):
+def fitness_eval(city_list, map_tsp, n_cities):
     total = 0
     for i in range(n_cities-1):
         a = city_list[i]
         b = city_list[i+1]
         total += map_tsp[a][b]
     return total
-def get_all_fitnes(population_set, map_tsp):
+def get_all_fitnes(population_set, map_tsp, n_population,n_cities):
     fitnes_list = np.zeros(n_population)
-    print(map_tsp)
     #Looping over all solutions computing the fitness for each solution
-    for i in  range(n_population):
-        print(fitness_eval(population_set[i], map_tsp))
+    # print(n_population)
+    for i in range(n_population):
+        # print(population_set[i])
+        # print(map_tsp)
+        # print(fitness_eval(population_set[i], map_tsp))
 
-        fitnes_list[i] = fitness_eval(population_set[i], map_tsp)
+        fitnes_list[i] = fitness_eval(population_set[i], map_tsp,n_cities)
 
     return fitnes_list
 
@@ -86,7 +88,7 @@ def mate_population(progenitor_list):
 
 # new_population_set = mate_population(progenitor_list)
 # print(new_population_set[0])
-def mutate_offspring(offspring):
+def mutate_offspring(offspring,n_cities,mutation_rate):
     for q in range(int(n_cities*mutation_rate)):
         a = np.random.randint(0,n_cities)
         b = np.random.randint(0,n_cities)
@@ -96,10 +98,10 @@ def mutate_offspring(offspring):
     return offspring
     
     
-def mutate_population(new_population_set):
+def mutate_population(new_population_set,n_cities,mutation_rate):
     mutated_pop = []
     for offspring in new_population_set:
-        mutated_pop.append(mutate_offspring(offspring))
+        mutated_pop.append(mutate_offspring(offspring,n_cities,mutation_rate))
     return mutated_pop
 
 # mutated_pop = mutate_population(new_population_set)
