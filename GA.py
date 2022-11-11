@@ -96,7 +96,7 @@ class GA:
             else:
                 elite = list_rank[0][0]
                 loop_break = 0
-            if loop_break > 2000:
+            if loop_break > 3000:
                 print("break", i)
                 break
         return list_rank[0]

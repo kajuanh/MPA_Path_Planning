@@ -3,9 +3,10 @@ sys.path.append(os.path.abspath(""))
 from modify_code import distance, MPA
 from Class import MPAs
 
-environment = MPA('Test/map30_7.txt')
+# environment = MPA('Test/map30_7.txt')
+# mpa_obj = MPAs(environment.map_size,environment.environment)
+environment = MPA('Test/map15_3.txt')
 mpa_obj = MPAs(environment.map_size,environment.environment)
-
 # path = Top_predator_pos.tolist()
 # path = mpa_obj.shorten(path, [1, 2], [11, 11])
 # print(path)
@@ -39,9 +40,9 @@ def remove_no_connection(self,path :list[list],end:list[int]):
     len_list = len(path)
     remove_index = []
     for i in range(1,len_list-1):
-        if self.check_collision(path[i],path[i-1]) and mpa_obj.check_collision(path[i],path[i+1]):
+        if self.check_collision(path[i],path[i-1]) and self.check_collision(path[i],path[i+1]):
             remove_index.append(i)
-    if mpa_obj.check_collision(path[-1],end) and mpa_obj.check_collision(path[-1],path[-2]):
+    if self.check_collision(path[-1],end):
             remove_index.append(len_list-1)
     remove_index.reverse()
     for i in remove_index:
@@ -70,65 +71,59 @@ def remove_duplicate(path :list[list]):
     return path
 
 def shorten(self, path: list[list[int,int]],start: list[int,int],end: list[int,int]):
-    len_list = len(path)
-    index_l = 0
-    index_r = len_list-1
-    print(index_r)
-    for i in range(len_list):
-        if path[i][0]==start[0]and path[i][1]==start[1]:
-            index_l = i+1
-    for j in range(index_r,-1,-1):
-        if path[j][0]==end[0] and path[j][1]==end[1]:
-            index_r = j-1
-    path_trip = path[index_l:index_r+1]
-    path_trip = remove_no_connection(self,path_trip,end)
+    # '''function to shorten the path'''
+    # len_list = len(path)
+    # index_l = 0
+    # index_r = len_list-1
+    # for i in range(len_list):
+    #     if path[i][0]==start[0]and path[i][1]==start[1]:
+    #         index_l = i+1
+    # for j in range(index_r,-1,-1):
+    #     if path[j][0]==end[0] and path[j][1]==end[1]:
+    #         index_r = j-1
+    # path_trip = path[index_l:index_r+1]
+    # path_trip = self.remove_no_connection(path_trip,end)
+    # for i in path:
+    #     if i == start:
+    #         path.remove(i)
+    #     if i == end:
+    #         path.remove(i)
+    remove_st_en = []
+    for i,p in enumerate (path,0):
+        if p == start or p == end:
+            remove_st_en.append(i)
+    remove_st_en.reverse()
+    for i in remove_st_en:
+        path.pop(i)
+    path_trip = path
     print(path_trip)
-    path_trip = remove_duplicate(path_trip)
+    # path_trip = remove_duplicate(path_trip)
+    print(path_trip)
     len_list = len(path_trip)
-    index_l = tem_id = 0
-    index_r = len_list-1
-    left = [start]
-    right = [end]
+    reduce_sol = [start]
     t=0
-    while t<10 and self.check_collision(left[-1],right[-1]):
-        far_l = near_r = None
-        for i in range(index_l, index_r+1):
-            # print(path_trip[i])
-            if not self.check_collision(left[-1], path_trip[i]) and not (left[-1][0] == path_trip[i][0] and left[-1][1] == path_trip[i][1]):
-                far_l = path_trip[i]
-                tem_id = i+1
-        if far_l is not None:
-            left.append(far_l)
+    index_l = 0
+    while t<100 and self.check_collision(reduce_sol[-1],end):
+        temp = None
+        for i in range(index_l,len_list):
+                if not self.check_collision(reduce_sol[-1], path_trip[i]) :
+                    temp = path_trip[i]
+                    tem_id = i+1
+        if temp is not None:
+            reduce_sol.append(temp)
             index_l = tem_id
-
-        if left[-1][0]==right[-1][0] and left[-1][1]==right[-1][1] or not self.check_collision(left[-1],right[-1]):
-            break
-
-        for j in range(index_r,index_l-1,-1):
-            print(path_trip[j])
-            if not self.check_collision(right[-1], path_trip[j]) and not (right[-1][0] == path_trip[j][0] and right[-1][1] == path_trip[j][1]) :
-                near_r = path_trip[j]
-                tem_id = j-1
-        if near_r is not None:
-            right.append(near_r)
-            index_r = tem_id
-        
-        if left[-1][0]==right[-1][0] and left[-1][1]==right[-1][1]or not self.check_collision(left[-1],right[-1]):
-            break
+        print(reduce_sol)
         t+=1
-        # print(index_l,index_r)
-        print('left',left)
-        print('right',right)
-    if t==10:
+    if t>=100:
+        print(start,end)
+        print(path_trip)
+        print(reduce_sol)
         print(path)
-        raise('loi')
-    if left[-1][0]==right[-1][0] and left[-1][1]==right[-1][1]:
-        right.pop()
-    left.pop(0)
-    right.reverse()
-    left.extend(right)
-    left = remove_duplicate(left)
-    return left
+        print(index_l)
+        raise ('loi')
+
+    reduce_sol.pop(0)
+    return reduce_sol
 
 # display(mpa_obj.data,right,plt)
 # print(mpa_obj.check_collision([7,13],[11,11]))
@@ -136,7 +131,7 @@ start = [12,1]
 end = [23,6]
 path_2 = [(12, 1), [13, 1], [14, 1], [16, 1], [18, 0], [20, 2], [20, 3], [19, 4], [18, 4], [17, 3], [16, 3], [16, 5], [16, 4], [15, 4], [17, 4], [17, 2], [19, 1], [20, 0], [22, 0], [21, 1], [20, 1], [22, 2], [20, 4], [19, 3], [21, 5], [23, 5], [24, 4], [
     24, 2], [23, 3], [23, 4], [24, 5], [22, 7], [23, 7], [21, 6], [22, 6], [20, 5], [20, 7], [21, 8], [20, 6], [18, 5], [19, 6], [19, 8], [19, 7], [18, 6], [20, 8], [22, 8], [24, 7], [24, 8], [23, 6], [23, 8], [23, 10], [22, 9], [23, 9], [21, 11]]
-print(environment.goals)
+# print(environment.goals)
 path_3=[(12, 1), [14, 1], [15, 1], [17, 1]]
 path_4 = [(12, 1), [11, 1], [13, 1], [14, 1], [15, 1], 
         [16, 1], [18, 0], [18, 2], [17, 4], [16, 3], 
@@ -223,8 +218,16 @@ path_8 = [
 # print(mpa_obj.check_collision([6,12],[7,13]))
 list = [[1,2],[4,5],[2,5],[1,3],[2,5],[7,8]]
 path_7=[[1, 5], [6, 5], [6, 12], [8, 14], [11, 13], [10, 10], [10, 10], [7, 7], [6, 6]]
+path_9 = [[0, 0], [0, 5], [6, 5], [6, 13], [3, 13], [0, 12]]
+# print(mpa_obj.calculator(path_test, [0, 0], [0, 12]))
+path_10 = [[0, 0], [0, 0], [0, 5], [6, 5], [6, 14], [0, 0], [3, 13], [0, 0], [0, 0], [0, 0], [0, 0], [0, 12], [0, 0], [0, 0], [0, 12], [0, 0], [0, 0], [0, 12], [0, 12], [0, 12], [0, 0], [0, 0], [0, 0], [0, 0], [0, 12], [0, 12], [0, 12], [0, 0], [0, 0], [0, 0]]
+# print(mpa_obj.check_collision([0,3],[1, 4]))
+# print(mpa_obj.check_collision([3,13],[0, 12]))
+# print(mpa_obj.check_collision([6,9],[5, 13]))
 # print (shorten(mpa_obj,path_5, [12,1],[23,23]))
-print (shorten(mpa_obj,path_8, [1,14],[18,17]))
+# print (shorten(mpa_obj,path_9, [0,0],[0,12]))
+# print (shorten(mpa_obj,path_10, [0,0],[0,12]))
+
 # print(list[-2])
 # print(mpa_obj.shorten(path_8, [1,2],[11,11]))
 # print (remove_no_connection(mpa_obj,path_6,[11,11]))

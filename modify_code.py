@@ -300,7 +300,7 @@ class MPA:
       temp_map[st[0]][st[1]] = 3
 
       while self.check_collision(origin_sol[-1], dst):
-        rd_values = self.random_space(3,origin_sol[-1],temp_map)
+        rd_values = self.random_space(2,origin_sol[-1],temp_map)
         while True:
           if len(rd_values) == 0:
                 origin_sol.pop()

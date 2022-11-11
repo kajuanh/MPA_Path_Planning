@@ -2,11 +2,11 @@ import sys, os, math
 sys.path.append(os.path.abspath(""))
 from mytempcode_MPA.initialization import initialization
 from mytempcode_MPA.levy import levy as levys
+from scipy.stats import norm
 from modify_code import distance, MPA
 from scipy.stats import levy
 import random as rd
 import numpy as np
-from Class import GridMap
 import matplotlib.pyplot as plt
 import matplotlib
 from Class import MPAs
@@ -15,6 +15,8 @@ from decimal import Decimal
 
 mpa_obj = MPAs(environment.map_size,environment.environment)
 # tl = len(mpa_obj.empty)/len(mpa_obj.obstacles)
+datas = mpa_obj.init_population(environment.map_size*2,[0,0],[0,12])
+print(len(datas))
 data = [
 [[1, 2], [1, 0], [14, 0], [14, 3], [12, 5], [8, 5], [6, 7], [6, 13], [10, 14], [12, 12], [11, 11]],
 [[1, 2], [0, 2], [2, 0], [13, 0], [14, 4], [7, 6], [7, 7], [5, 9], [7, 14], [12, 14], [11, 11]],
@@ -141,10 +143,10 @@ def covert_list_index_to_coordinates(ids:list):
 
 def full_data(data:list[list[list]],end:list[list]):
     max_len = 0
+
     for line in data:
         if line[0] == start:
             line.pop(0)
-
         if line[-1]==end:
             line.pop(-1)
 
@@ -152,14 +154,18 @@ def full_data(data:list[list[list]],end:list[list]):
             max_len = len_line
     
     for line in data:
-        line.extend([end]*(max_len-len(line)))
+        line.extend([end for _ in range(max_len-len(line))])
     return data, max_len
 
-start = [1,2]
-end = [11,11]
-data, dim = full_data(data,end)
+start = [0,0]
+end = [0,12]
+# data, dim = full_data(data,end)
+# data = np.array(data,dtype=np.int64)
+# print(datas)
+datas, dim = full_data(datas,end)
+# print(dim)
+datas = np.array(datas,dtype=np.int64)
 
-data = np.array(data,dtype=np.int64)
 def display_data(data):
     for i in data:
         display_line_array(i)
@@ -170,22 +176,87 @@ def display_line_array(line):
     print(s)
 
 def nan_to_zeros(x:np):
-    
     for i in range(x.shape[0]):
         x[i] = 0 if np.isnan(x[i]) else x[i]
     return x
 
-# display_data(data)
+def normal_search(self, f_sol, end):
+    f_ns_sol = []
+    for f_i in f_sol:
+        f_x = rd.randint(-1, 1)
+        f_y = rd.randint(-1, 1)
+        f_ns_sol.append([f_i[0] + f_x, f_i[1] + f_y])
+    return f_ns_sol        
+
+
+# display_data(datas)
 # for _ in range(10):
-Prey = data.copy()
-SearchAgents_no = 15
+# Prey = data.copy()
+def init_p(self,st,dst):
+    self.d_min = 2
+    origin_sol = [st]
+    temp_map = self.data.copy()
+    temp_map[origin_sol[-1][0]][origin_sol[-1][0]] = 3
+
+    while self.check_collision(origin_sol[-1], dst):
+        rd_values = self.random_space(2,origin_sol[-1],temp_map)
+        while True:
+            if len(rd_values) == 0:
+                origin_sol.pop()
+                break
+            selected = rd.choice(rd_values)
+            rd_values.remove(selected)
+
+            if not self.check_collision(selected, origin_sol[-1]):
+                origin_sol.append(selected)
+                temp_map[selected[0]][selected[1]] = 3
+                break
+        if len(origin_sol) == 0:
+            origin_sol = [st]
+            temp_map = self.data.copy()
+            temp_map[origin_sol[-1][0]][origin_sol[-1][0]] = 3
+        
+        reduce_sol = [st]
+        while self.check_collision(reduce_sol[-1], dst):
+            i = len(origin_sol) - 1
+            while self.check_collision(reduce_sol[-1], origin_sol[i]):
+                i -= 1
+            reduce_sol.append(origin_sol[i])
+        pre_sol = st
+        reduce_sol.pop(0)
+        reduce_sol.append(dst)
+        iPrey = []
+        for sol in reduce_sol:
+            loop = int(self.distance_s(pre_sol, sol) / self.d_min)
+            for i in range(1, loop):
+                x = round(pre_sol[0] + (sol[0] - pre_sol[0]) * i / loop)
+                y = round(pre_sol[1] + (sol[1] - pre_sol[1]) * i / loop)
+                if self.check_collision(pre_sol, [x, y]) or self.check_collision([x, y], sol):
+                    continue
+                iPrey.append([x, y])
+            iPrey.append(sol)
+            pre_sol = sol
+        iPrey.pop()
+    return iPrey
+# datass = []
+# for _ in range(15):
+#     datass.append(init_p(mpa_obj,start,end))
+#     print(datass)
+# datass, dim = full_data(datass,end)
+# datass = np.array(datass,dtype=np.int64)
+
+Prey = datas.copy()
+# display_data(Prey)
+
+SearchAgents_no = Prey.shape[0]
+# print(SearchAgents_no)
 lb = 0
-ub = SearchAgents_no-1
-Max_iter = 90
+ub = 15-1
+Max_iter = 50
 Xmin = np.ones((SearchAgents_no, dim),dtype=int)*lb
 Xmax = np.ones((SearchAgents_no, dim),dtype=int)*ub
 Top_predator_pos = np.zeros((dim, 2),dtype=int)
-Top_predator_fit = math.inf
+Top_predator_fit = 9999.0
 # print('Top_predator_pos :')
 # display_line_array(Top_predator_pos)
 # print('Top_predator_fit',Top_predator_pos)
@@ -195,16 +266,16 @@ Convergence_curve = np.zeros((1, Max_iter))
 stepsize_x = np.zeros((SearchAgents_no, dim))
 stepsize_y = np.zeros((SearchAgents_no, dim))
 
-fitness = np.full((SearchAgents_no, 1), np.inf)
+fitness = np.full((SearchAgents_no, 1), 9999.0)
 # print('Convergence_curve',Convergence_curve)
 # print('stepsize',stepsize)
 # print('fitness',fitness)
 levy.a = 1.5
 levy.b = 1
-Iter = 0
+# Iter = 0
 FADs = 0.2
 P = 0.5
-for Iter in range(90):
+for Iter in range(50):
     for i in range(SearchAgents_no):
 
         Flag4ubx = (Prey[i, :,0] > ub).astype(int)
@@ -214,18 +285,19 @@ for Iter in range(90):
 
         Prey[i, :, 0] = (Prey[i, :, 0]*(np.logical_not(Flag4ubx +Flag4lbx).astype(int))+ub*Flag4ubx+lb*Flag4lbx)
         Prey[i, :, 1] = (Prey[i, :, 1]*(np.logical_not(Flag4uby +Flag4lby).astype(int))+ub*Flag4uby+lb*Flag4lby)
-        v,dis_prey = mpa_obj.calculator(Prey[i, :].tolist(), start, end) 
+        v, dis_prey = mpa_obj.calculator(Prey[i, :].tolist(), start, end)
 
         if v == 0:
             fitness[i, 0] = dis_prey
-        elif v==1:
-            fitness[i, 0] = math.inf
+        elif v == 1:
+            fitness[i, 0] = 9999.0
         else:
             print(v,dis_prey,Prey[i, :])
         if (fitness[i, 0] < Top_predator_fit):
             Top_predator_fit = fitness[i, 0]
 
             Top_predator_pos = Prey[i].copy()
+            print(fitness[i, 0])
     # print(Top_predator_pos.T)
     if Iter == 0:
         fit_old = fitness.copy()
@@ -238,11 +310,10 @@ for Iter in range(90):
         else:
             Inx[i] = 1
 
-    Indx = np.full((Inx.shape[0], dim), Inx).astype(int)
-    Prey[:,:,0] = Indx*Prey_old[:,:,0] + np.logical_not(Indx).astype(int) * Prey[:,:,0]
-    Prey[:,:,1] = Indx*Prey_old[:,:,1] + np.logical_not(Indx).astype(int) * Prey[:,:,1]
-    with np.errstate(invalid='ignore'):
-        fitness =Inx*fit_old + nan_to_zeros((np.logical_not(Inx).astype(int) * fitness))
+    Indx = np.full((Inx.shape[0], dim), Inx,dtype=int)
+    Prey[:, :, 0] = Indx*Prey_old[:, :, 0] + np.logical_not(Indx) * Prey[:, :, 0]
+    Prey[:, :, 1] = Indx*Prey_old[:, :, 1] + np.logical_not(Indx) * Prey[:, :, 1]
+    fitness =Inx*fit_old + nan_to_zeros((np.logical_not(Inx).astype(int) * fitness))
 
     fit_old = fitness.copy()
     Prey_old = Prey.copy()
@@ -251,10 +322,15 @@ for Iter in range(90):
     Elite = np.full((SearchAgents_no, *Top_predator_pos.shape), Top_predator_pos,dtype=np.int64)  # %(Eq. 10)
 
     CF = (1-Iter/Max_iter)**(2*Iter/Max_iter)
-    RLX = np.array(levy.rvs(0, 1, (SearchAgents_no, dim)))
-    RLY = np.array(levy.rvs(0, 1, (SearchAgents_no, dim)))
-    RBX = np.random.normal(0, 1, (SearchAgents_no, dim))
-    RBY = np.random.normal(0, 1, (SearchAgents_no, dim))
+    # RLX = np.array(levy.rvs(0, 1, (SearchAgents_no, dim)))
+    # RLY = np.array(levy.rvs(0, 1, (SearchAgents_no, dim)))
+    RLX = 0.05*levys(SearchAgents_no, dim, 1.5)
+    RLY = 0.05*levys(SearchAgents_no, dim, 1.5)
+    # RBX = np.random.normal(0,1,(SearchAgents_no, dim))
+    # RBY = np.random.normal(0,1,(SearchAgents_no, dim))
+    RBX = np.random.randn(SearchAgents_no, dim)
+    RBY = np.random.randn(SearchAgents_no, dim)
+
     for i in range(SearchAgents_no):
         for j in range(dim):
             R = rd.uniform(0, 1)
@@ -263,9 +339,9 @@ for Iter in range(90):
                 stepsize_x[i, j] = RBX[i, j] * (Elite[i, j, 0]-RBX[i, j]*Prey[i, j, 0])
                 stepsize_y[i, j] = RBY[i, j] * (Elite[i, j, 1]-RBY[i, j]*Prey[i, j, 1])
 
-                Prey[i, j, 0] = Prey[i, j, 0] + P*R*stepsize_x[i, j]
-                Prey[i, j, 1] = Prey[i, j, 1] + P*R*stepsize_y[i, j]
-                # print('stepsize[%d, %d]'%(i,j),stepsize[i, j])
+                Prey[i, j, 0] = Prey[i, j, 0] + ((P*R*stepsize_x[i, j]) % 15) if stepsize_x[i, j] > 0 else - ((P*R*abs(stepsize_x[i, j])) % 15)
+
+                Prey[i, j, 1] = Prey[i, j, 1] + ((P*R*stepsize_y[i, j]) % 15) if stepsize_y[i, j] > 0 else - ((P*R*abs(stepsize_y[i, j])) % 15)
 
             # %--------------- Phase 2 (Eqs. 13 & 14)----------------
             elif (Iter > Max_iter/3) and (Iter < 2*Max_iter/3):
@@ -273,48 +349,33 @@ for Iter in range(90):
                     stepsize_x[i, j] = RBX[i, j] * (Elite[i, j, 0]-RBX[i, j]*Prey[i, j, 0])
                     stepsize_y[i, j] = RBY[i, j] * (Elite[i, j, 1]-RBY[i, j]*Prey[i, j, 1])
 
-                    Prey[i, j, 0] = Elite[i, j, 0] + P*CF*stepsize_x[i, j]
-                    Prey[i, j, 1] = Elite[i, j, 1] + P*CF*stepsize_y[i, j]
+                    Prey[i, j, 0] = Elite[i, j, 0] + ((P*CF*stepsize_x[i, j])%15) if stepsize_x[i, j]>0 else - ((P*CF*abs(stepsize_x[i, j]))%15)
+                    Prey[i, j, 1] = Elite[i, j, 1] + ((P*CF*stepsize_y[i, j])%15) if stepsize_y[i, j]>0 else - ((P*CF*abs(stepsize_y[i, j]))%15)
                 else:
                     stepsize_x[i, j] = (RLX[i, j] * (Elite[i, j, 0]-RLX[i, j]*Prey[i, j, 0]))
                     stepsize_y[i, j] = (RLY[i, j] * (Elite[i, j, 1]-RLY[i, j]*Prey[i, j, 1]))
-                    try:
-                        # fix error cant convert too large int to numpy int
-                        Prey[i, j, 0] = Prey[i, j, 0] + (check_large if abs(
-                            check_large := P*CF*stepsize_x[i, j]) < 15 else 15 if check_large > 0 else -15)
-                        Prey[i, j, 1] = Prey[i, j, 1] + (check_large if abs(
-                            check_large := P*CF*stepsize_y[i, j]) < 15 else 15 if check_large > 0 else -15)
-                    except Exception as E:
-                        print('error 1')
-                        print('E', E)
-                        print('Prey', Prey[i, j, 0])
-                        print('Elite', Elite[i, j, 0])
-                        print('P', P)
-                        print('CF', CF)
-                        print('stepsize_x', stepsize_x[i, j])
-                        print('stepsize_y', stepsize_y[i, j])
-                        sys.exit()
 
+                    
+                    Prey[i, j, 0] = Prey[i, j, 0] + ((P*R*stepsize_x[i, j])%15) if stepsize_x[i, j]>0 else - ((P*R*abs(stepsize_x[i, j]))%15)
+                    Prey[i, j, 1] = Prey[i, j, 1] + ((P*R*stepsize_y[i, j])%15) if stepsize_y[i, j]>0 else - ((P*R*abs(stepsize_y[i, j]))%15)
 
             #  %----------------- Phase 3 (Eq. 15)-------------------
             else:
                 stepsize_x[i, j] = (RLX[i, j] * (RLX[i, j]*Elite[i, j, 0]-Prey[i, j, 0]))
                 stepsize_y[i, j] = (RLX[i, j] * (RLX[i, j]*Elite[i, j, 1]-Prey[i, j, 1]))
-                try:
-                    Prey[i, j, 0] = Elite[i, j, 0] + (check_large if abs(
-                        check_large := P*CF*stepsize_x[i, j]) < 15 else 15 if check_large > 0 else -15)
-                    Prey[i, j, 1] = Elite[i, j, 1] + (check_large if abs(
-                        check_large := P*CF*stepsize_y[i, j]) < 15 else 15 if check_large > 0 else -15)
-                except Exception as E:
-                    print('error 2')
-                    print('E', E)
-                    print('Prey', Prey[i, j, 0])
-                    print('Elite', Elite[i, j, 0])
-                    print('P', P)
-                    print('CF', CF)
-                    print('stepsize_x', stepsize_x[i, j])
-                    print('stepsize_y', stepsize_y[i, j])
-                    sys.exit()
+                Prey[i, j, 0] = Elite[i, j, 0] + ((P*CF*stepsize_x[i, j])%15) if stepsize_x[i, j]>0 else - ((P*CF*abs(stepsize_x[i, j]))%15)
+                Prey[i, j, 1] = Elite[i, j, 1] + ((P*CF*stepsize_y[i, j])%15) if stepsize_y[i, j]>0 else - ((P*CF*abs(stepsize_y[i, j]))%15)
+
+        # child = normal_search(mpa_obj,Prey[i],end)
+        # new_v, new_dis = mpa_obj.calculator(child, start, end)
+        # if new_v == 0 and new_dis < fitness[i]:
+        #     Prey[i] = child
+        
+        # ga_child = mpa_obj.evolution(child, Prey[i], start, end)
+        # new_v, new_dis = mpa_obj.calculator(ga_child, start, end)
+        # if new_v == 0:
+        #     if new_v == 0 and new_dis < fitness[i]:
+        #         Prey[i] = ga_child
 
 
     # display_data(Prey)
@@ -325,17 +386,15 @@ for Iter in range(90):
         Flag4uby = (Prey[i, :,1] > ub).astype(int)
         Flag4lby = (Prey[i, :,1] < lb).astype(int)
 
-        Prey[i, :, 0] = (Prey[i, :, 0]*(np.logical_not(Flag4ubx +
-                        Flag4lbx).astype(int))+ub*Flag4ubx+lb*Flag4lbx)
-        Prey[i, :, 1] = (Prey[i, :, 1]*(np.logical_not(Flag4uby +
-                        Flag4lby).astype(int))+ub*Flag4uby+lb*Flag4lby)
+        Prey[i, :, 0] = (Prey[i, :, 0]*(np.logical_not(Flag4ubx + Flag4lbx).astype(int))+ub*Flag4ubx+lb*Flag4lbx)
+        Prey[i, :, 1] = (Prey[i, :, 1]*(np.logical_not(Flag4uby + Flag4lby).astype(int))+ub*Flag4uby+lb*Flag4lby)
         v,dis_prey = mpa_obj.calculator(Prey[i, :].tolist(), start, end) 
 
         if v == 0:
             fitness[i, 0] = dis_prey
             
         elif v==1:
-            fitness[i, 0] = np.inf
+            fitness[i, 0] = 9999.0
         else:
             print(v,dis_prey,Prey[i, :])
 
@@ -343,6 +402,7 @@ for Iter in range(90):
             
             Top_predator_fit = fitness[i, 0].copy()
             Top_predator_pos = Prey[i].copy()
+            print(fitness[i, 0])
 
     # print('Top_predator_pos:')
     # display_line_array(Top_predator_pos)
@@ -351,34 +411,33 @@ for Iter in range(90):
         fit_old = fitness.copy()
         Prey_old = Prey.copy()
 
-    Inx = np.zeros((fitness.shape[0],1))
+    Inx = np.zeros((fitness.shape[0],1),dtype=int)
     for i in range(fitness.shape[0]):
         if(fit_old[i] < fitness[i]):
             Inx[i] = 0
-        else:
-            Inx[i] = 1
 
-    Indx = np.full((Inx.shape[0], dim), Inx).astype(int)
+    Indx = np.full((Inx.shape[0], dim), Inx,dtype=int)
 
-    Prey[:,:,0] = Indx*Prey_old[:,:,0] + np.logical_not(Indx).astype(int) * Prey[:,:,0]
-    Prey[:,:,1] = Indx*Prey_old[:,:,1] + np.logical_not(Indx).astype(int) * Prey[:,:,1]
+    Prey[:, :, 0] = Indx*Prey_old[:, :, 0] + np.logical_not(Indx) * Prey[:, :, 0]
+    Prey[:, :, 1] = Indx*Prey_old[:, :, 1] + np.logical_not(Indx) * Prey[:, :, 1]
 
-    with np.errstate(invalid='ignore'):
-        fitness =Inx*fit_old + nan_to_zeros((np.logical_not(Inx).astype(int) * fitness))
+    fitness =Inx*fit_old + (np.logical_not(Inx) * fitness)
     Prey_old = Prey.copy()
-    #  %---------- Eddy formation and FADs� effect (Eq 16) -----------
-    if rd.uniform(0, 1) < FADs:
-        U = np.random.rand(SearchAgents_no, dim) < FADs
-        Prey[:,:,0] = Prey[:,:,0]+CF * ((Xmin+np.random.rand(SearchAgents_no, dim)*(Xmax-Xmin))*U)
-        Prey[:,:,1] = Prey[:,:,1]+CF * ((Xmin+np.random.rand(SearchAgents_no, dim)*(Xmax-Xmin))*U)
-    else:
-        r = rd.uniform(0, 1)
-        Rs = Prey.shape[0]
-        stepsize_x = (FADs*(1-r)+r)*(Prey[np.random.permutation(Rs), :,0]-Prey[np.random.permutation(Rs), :,0])
-        stepsize_y = (FADs*(1-r)+r)*(Prey[np.random.permutation(Rs), :,1]-Prey[np.random.permutation(Rs), :,1])
-        Prey[:,:,0] = Prey[:,:,0]+stepsize_x
-        Prey[:,:,1] = Prey[:,:,1]+stepsize_y
-    # # Iter = Iter+1
+    #%---------- Eddy formation and FADs� effect (Eq 16) -----------
+    # if rd.uniform(0, 1) < FADs:
+    #     U = np.random.rand(SearchAgents_no, dim) < FADs
+    #     stepsize_x = CF * ((Xmin+np.random.rand(SearchAgents_no, dim)*(Xmax-Xmin))*U)
+    #     stepsize_y = CF * ((Xmin+np.random.rand(SearchAgents_no, dim)*(Xmax-Xmin))*U)
+    #     Prey[:, :, 0] = Prey[:, :, 0] + stepsize_x 
+    #     Prey[:, :, 1] = Prey[:, :, 1] + stepsize_y 
+    #     r = rd.uniform(0, 1)
+    #     Rs = Prey.shape[0]
+    #     stepsize_x = (FADs*(1-r)+r)*(Prey[np.random.permutation(Rs), :, 0]-Prey[np.random.permutation(Rs), :, 0])
+    #     stepsize_y = (FADs*(1-r)+r)*(Prey[np.random.permutation(Rs), :, 1]-Prey[np.random.permutation(Rs), :, 1])
+    #     Prey[:, :, 0] = Prey[:, :, 0] + stepsize_x
+    #     Prey[:, :, 1] = Prey[:, :, 1] + stepsize_y
+    # Iter = Iter+1
+
     Convergence_curve[:, Iter] = Top_predator_fit
 
 # print('Prey')
@@ -391,8 +450,10 @@ print(Top_predator_pos.T)
 print('Top_predator_pos')
 display_line_array(Top_predator_pos)
 print('Top_predator_fit',Top_predator_fit)
-print('Convergence_curve', Convergence_curve)
-print(shorten:= mpa_obj.shorten(Top_predator_pos.tolist(),start,end))
+print('Convergence_curve \n', Convergence_curve)
+print(shorten:= mpa_obj.best_shorten(Top_predator_pos.tolist(),start,end))
+# shorten.insert(0,start)
+# shorten.append(end)
 print(mpa_obj.calculator(Top_predator_pos.tolist(),start,end))
 print(mpa_obj.calculator(shorten,start,end))
 display(mpa_obj.data,shorten,plt)
