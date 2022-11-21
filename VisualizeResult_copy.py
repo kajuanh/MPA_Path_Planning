@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import numpy as np
 import pygame
 import math
@@ -6,11 +7,10 @@ import matplotlib
 BLACK = (0, 0, 0,1)
 WHITE = (250, 250, 250,1)
 YELLOW = (215, 225, 88,1)
-GRAY = (150, 150, 100,1)
+GRAY = (150/255, 150/255, 100/255,1)
 BLUE = (0,0,230,1)
 GREEN = (0,230,0,1)
 
-import matplotlib.colors as mcolors
 def split_map(env: np):
     '''return goals , start, end, origin map and is_have_se (have start, end)'''
     o_env = env.copy()
@@ -42,47 +42,65 @@ def read_file(filepath:str, type:int = 0):
                 return np_map, m_s
             elif type == 1:
                 pass
-    except:
+    except Exception as E:
+        print(E)
         raise Exception('error read file ') 
 
 # in total we now have 175 colors in the colormap
 
 
-colors = np.vstack((WHITE, BLACK, YELLOW, GREEN, BLUE))
-print(colors)
-cmap=mcolors.LinearSegmentedColormap.from_list('my_colormap', colors)
 class DisplayMatplotlib:
-    def __init__(self, plt, m_size, line, env, start= [],end=[],goals=[]):
+    def __init__(self, m_size, env,line=[],  start= [],end=[],goals=[],dis=None):
         self.plt = plt
         self.m_size = m_size
         self.line = line
         self.env = env
-        self.start = env
-        self.end = env
-        self.goals = env
-        
-    def draw_line(self, points: list[list], plt: matplotlib.pyplot):
+        self.start = start
+        self.end = end
+        self.goals = goals
+        self.dis = dis
+    def draw_line(self, points: list[list]):#, plt: matplotlib.pyplot):
         xl = []
         yl = []
         for point in points:
             xl.append(point[0]+0.5)
             yl.append(point[1]+0.5)
-        plt.plot(xl, yl, '>-')
+        plt.plot(xl, yl, '-')
+    
+    def draw_line_arrow(self, points: list[list],ax):#, plt: matplotlib.pyplot):
+        for i in range (len(points)-1):
+            x1 =  points[i][0]+0.5
+            y1 = points[i][1]+0.5
+            x2 =  points[i+1][0]+0.5
+            y2 = points[i+1][1]+0.5
+            x_mid = (x1+x2)/2
+            y_mid = (y1+y2)/2
+            dx = (x2-x1)*0.01
+            dy = (y2-y1)*0.01
+            plt.plot([x1,x2],[y1,y2],'b-')
+
+            plt.arrow(x_mid, y_mid, dx, dy, head_width=0.2, head_length=0.2, length_includes_head=True, color='b')
 
     def draw(self):
         fig, ax = plt.subplots()
         fig.set_size_inches(10, 10)
-
-        ax.tick_params(top=True, labeltop=True,
-                       bottom=False, labelbottom=False)
+        ax.set_title("Distance = " + str('????' if self.dis is None else self.dis))
+        ax.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
         ax.set_xlim(0, self.m_size)
         ax.set_ylim(0, self.m_size)
         plt.xticks([*range(self.m_size)])
         plt.yticks([*range(self.m_size)])
-        self.draw_line(self.line, self.plt)
-        
-        plt.imshow(self.env.transpose(), cmap=cmap,origin='lower',
-                   extent=(0, self.m_size, 0, self.m_size))
+        # self.draw_line(self.line, self.plt)
+        self.draw_line_arrow(self.line,ax)
+        if len(self.start) > 0 and len(self.end) > 0:
+            rect = Rectangle(tuple(self.start), 1, 1, linewidth=1, edgecolor=GRAY, facecolor='g')
+            ax.add_patch(rect)
+            rect = Rectangle(tuple(self.end), 1, 1, linewidth=1, edgecolor=GRAY, facecolor='r')
+            ax.add_patch(rect)
+        for goal in self.goals:
+            rect = Rectangle(tuple(goal), 1, 1, linewidth=1, edgecolor=GRAY, facecolor='y')
+            ax.add_patch(rect)
+        plt.imshow(self.env.transpose(), cmap='binary', origin='lower', extent=(0, self.m_size, 0, self.m_size))
         plt.grid()
         ax.invert_yaxis()
 

@@ -1,3 +1,4 @@
+from typing import List ,Union
 from threading import Thread
 import random as rd
 import numpy as np
@@ -18,12 +19,12 @@ class ThreadWithReturnValue(Thread):
         Thread.join(self, *args)
         return self._return
 
-def distance(c1: list[int] | tuple[int], c2: list[int] | tuple[int]):
+def distance(c1: Union[list[int] , tuple[int]], c2: Union[list[int] , tuple[int]]):
     '''function to calculate distance between 2 points'''
     return math.sqrt((c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2)
 
 
-def check_collision_of_2axis(a: int, b: int, st: list[int] | tuple[int], en: list[int] | tuple[int], environment: np, check: bool):
+def check_collision_of_2axis(a: int, b: int, st: Union [list[int] , tuple[int]], en: Union [list[int] , tuple[int]], environment: np, check: bool):
     '''function check collision by calculating the intersection points of the line segment to the lines:
         x=i, x=i+1, x=i+2 ... x=j (i=st_x, j=en_x) and y=h, y=h+1, ...y=k (h=st_y, k=en_y)'''
 
@@ -95,7 +96,7 @@ def check_collision_of_2axis(a: int, b: int, st: list[int] | tuple[int], en: lis
     return check
 
 
-def remove_duplicate(path: list[list[int]] | list[tuple[int, int]]):
+def remove_duplicate(path: Union[list[list[int]] , list[tuple[int, int]]]):
     '''function remove duplicate points in a path'''
     duplicate = True
     while duplicate:
@@ -198,7 +199,7 @@ class GridMap:
         self.dict_distance = {}
         self.d_min = 2
     
-    def distance_s(self, c1: list[int] | tuple[int], c2: list[int] | tuple[int]):
+    def distance_s(self, c1: Union[list[int] , tuple[int]], c2: Union[list[int] , tuple[int]]):
         '''function to calculate distance between 2 points have save in dict_distance'''
         if type(c1) != type([]):
             c1 = list(c1)
