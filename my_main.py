@@ -56,27 +56,25 @@ def solve(file_input: Entry, label: Entry):
     # print('->>>>>',filepath:= file_input.get())
     start_time = time.time()
     env, m_size = read_file(filepath)
-    goals, start, end, o_env, is_have_se = split_map(env)
+    goals, o_env, start, is_have_s = split_map(env)
     num_g = num_t = len(goals)
     targets = goals.copy()
     
-    if is_have_se :
-        se = '_se'
-        num_t+=2
+    if is_have_s :
+        s = '_s'
+        num_t+=1
         targets.insert(0,start)
-        targets.append(start)
         # targets.sort()
-        index_s = targets.index(start)
-        index_e = len(targets)-1#targets.index(s)
+        index_s = index_s = targets.index(start)
     else:
-        se = ''
+        s = ''
         index_s = index_e = None
 
     k = (num_t)*(num_t-1)
     map_tsp = np.full((num_t,num_t),0.0, dtype=float)
     map_way = np.empty((num_t,num_t), dtype=object)
 
-    file_name_sol = "Solutions/map" + (str(m_size)) + "_" + str(num_g) + se + "_sol.txt"
+    file_name_sol = "Solutions/map" + (str(m_size)) + "_" + str(num_g) + s + "_sol.txt"
     os.makedirs(os.path.dirname(file_name_sol), exist_ok=True)
     shutil.copyfile(filepath, file_name_sol)
     
@@ -88,9 +86,6 @@ def solve(file_input: Entry, label: Entry):
     num_way = 0
     for i_s in range(num_t):
         for i_d in range(i_s + 1, num_t):
-        
-            if i_s == index_s and i_d == index_e:
-                continue
 
             thread = ThreadWithReturnValue(
                 name='Way%s%s' % (str(targets[i_s]), str(targets[i_d])),
@@ -144,9 +139,6 @@ def solve(file_input: Entry, label: Entry):
     t=0
     for i_s in range(num_t):
         for i_d in range(i_s + 1, num_t):
-            if i_s == index_s and i_d == index_e:
-                map_tsp[index_s][index_e] = map_tsp[index_e][index_s] = 9999
-                continue
             dis_sol, final_sol = threads_ways[t].join()
             map_tsp[i_s][i_d] = dis_sol
             map_way[i_s][i_d] = final_sol
@@ -161,20 +153,20 @@ def solve(file_input: Entry, label: Entry):
     # print(goals)
     change_label(label, 'Finish Save Map_TSP')
 
-    ga_tsp = GA_TSP(map_tsp.tolist(), k, m_size,index_s=index_s,index_e=index_e)
+    ga_tsp = GA_TSP(map_tsp.tolist(), k, m_size,index_s=index_s)
     best_cost, best = ga_tsp.solve()
     print('>'*5+'best_cost\n', best_cost)
     print(map_way)
     # print(best)
     line = []
-    if is_have_se:
+    if is_have_s:
         best.insert(0,index_s)
-        best.append(index_e)
+        best.append(index_s)
+    else:
+        best.append(best[0])
     for i in range(len(best)-1):
         line.extend(map_way[best[i]][best[i+1]])
     print('>'*5+'best_cost\n', line)
-    # display = DisplayMatplotlib(m_size,o_env,line,start,end,goals,best_cost)
-    # display.draw()
     change_label(label, 'Finish GA_TSP')
     end_time = time.time()
     total_time =end_time - start_time
@@ -185,6 +177,9 @@ def solve(file_input: Entry, label: Entry):
         f.write(str(line)+'\n')
         f.write(str(total_time)+'\n')
     change_label(label, '%s | Time: %.3f' % (file_name_sol, total_time))
+    display = DisplayMatplotlib(m_size,o_env,line,start,[],goals,best_cost)
+    display.draw()
+
 # solve('Test/map_.txt',None)
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':

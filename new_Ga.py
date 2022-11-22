@@ -159,13 +159,12 @@ import time
 '''
 
 class GA_TSP:
-    def __init__(self, map_tsp, k=20, max_gen=5, mutation_prob=0.1, index_s=None, index_e=None):
+    def __init__(self, map_tsp, k=20, max_gen=5, mutation_prob=0.1, index_s=None):
         self.mutation_prob = mutation_prob
         self.num_t = len(map_tsp)
         self.map_tsp = map_tsp
         self.max_gen = max_gen
         self.index_s = index_s
-        self.index_e = index_e
         self.map_cost = {}
         self.k = k
 
@@ -176,11 +175,13 @@ class GA_TSP:
             l = 0
             for i in range(self.num_t-1):
                 l += self.map_tsp[s[i]][s[i+1]]
-            if all(v is not None for v in [self.index_s, self.index_e]):
+            if self.index_s is not None:
                 l += self.map_tsp[self.index_s][s[0]]
-                l += self.map_tsp[s[-1]][self.index_e]
+                l += self.map_tsp[s[-1]][self.index_s]
+            else:
+                l += self.map_tsp[s[len(s)-1]][s[0]]
+
             self.map_cost[str(s)] = l
-        # l += G[s[len(s)-1]][s[0]]
         return l
 
     
@@ -211,10 +212,9 @@ class GA_TSP:
 
     def init_population(self):
         path = list(range(self.num_t))
-        if all(v is not None for v in [self.index_s,self.index_e]):
-            path.pop(max(self.index_s,self.index_e))
-            path.pop(min(self.index_s,self.index_e))
-            self.num_t -=2
+        if self.index_s is not None:
+            path.pop(self.index_s)
+            self.num_t -=1
         n_p = self.k
         gen = [path]
         # value_index = {}

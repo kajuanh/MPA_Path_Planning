@@ -12,21 +12,23 @@ BLUE = (0,0,230,1)
 GREEN = (0,230,0,1)
 
 def split_map(env: np):
-    '''return goals , start, end, origin map and is_have_se (have start, end)'''
+    '''return goals, o_env, start, is_have_s (have start)'''
     o_env = env.copy()
     goals = list(map(list, zip(*np.where(env == 2))))
-    start = list(map(list, zip(*np.where(env == 3))))[0]
-    end = list(map(list, zip(*np.where(env == 4))))[0]
+    find_start = list(map(list, zip(*np.where(env == 3))))
+
     for goal in goals:
         o_env[goal[0], goal[1]] = 0
-    if len(start) > 1 and len(end) > 1:
-        o_env[start[0], start[1]] = 0
-        o_env[end[0], end[1]] = 0
-        is_have_se = True
-    else:
-        is_have_se = False
 
-    return goals, start, end, o_env, is_have_se
+    if len(find_start) > 1:
+        start = find_start[0]
+        o_env[start[0], start[1]] = 0
+        is_have_s = True
+    else:
+        is_have_s = False
+        start = []
+
+    return goals, o_env, start, is_have_s
 
 
 def read_file(filepath:str, type:int = 0):
@@ -92,10 +94,8 @@ class DisplayMatplotlib:
         plt.yticks([*range(self.m_size)])
         # self.draw_line(self.line, self.plt)
         self.draw_line_arrow(self.line,ax)
-        if len(self.start) > 0 and len(self.end) > 0:
+        if len(self.start) > 0 :
             rect = Rectangle(tuple(self.start), 1, 1, linewidth=1, edgecolor=GRAY, facecolor='g')
-            ax.add_patch(rect)
-            rect = Rectangle(tuple(self.end), 1, 1, linewidth=1, edgecolor=GRAY, facecolor='r')
             ax.add_patch(rect)
         for goal in self.goals:
             rect = Rectangle(tuple(goal), 1, 1, linewidth=1, edgecolor=GRAY, facecolor='y')
