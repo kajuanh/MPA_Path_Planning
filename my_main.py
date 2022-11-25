@@ -15,17 +15,9 @@ from tkinter import filedialog
 from functools import partial
 import glob
 solutions_dir = os.path.abspath("Solutions")
-# print(solutions_dir)
 from pathlib import Path
 import time
-# env, m_size = read_file('Test/map15_4 _new.txt')
-# print(m_size)
-# print(env.T)
-# goals, start, end, o_env = split_map(env)
-# print(goals)
-# print(start)
-# print(end)
-# print(o_env.T)
+
 def change_label(label: Entry,str_display: str): 
     label.configure(state=NORMAL)
     label.delete(0, 100)  # delete
@@ -33,23 +25,26 @@ def change_label(label: Entry,str_display: str):
     label.configure(state=DISABLED)  # enable
     label.update()
 
-def select_file(entry_input):
+def select_file(entry_input, list_ms):
     file = filedialog.askopenfilename()
     entry_input.configure(state=NORMAL)
     entry_input.delete(0, 100)  # delete
-    entry_input.insert(END, str(file))  # insert
-    entry_input.configure(state=DISABLED)  # enable
+    entry_input.insert(END, str(os.path.relpath(file)))  # insert
+    entry_input.configure(state=DISABLED,foreground='black')  # enable
+    list_ms.configure(state=DISABLED)
 
-
-def select_solve(select_button, solve_button):
+def select_solve(select_button, solve_button, list_ms, new_map_button):
     select_button.configure(state=NORMAL)
     solve_button.configure(state=NORMAL)
+    list_ms.configure(state=NORMAL)
+    new_map_button.configure(state=NORMAL)
 
-def select_show(select_combobox):
+def select_show(select_combobox, s_show):
     select_combobox.configure(state=NORMAL)
     select_combobox['values'] = tuple(os.path.join('Solutions',file.name) for file in Path(solutions_dir).rglob('*.txt'))#tuple(glob.glob('*.txt'))
     select_combobox.current(0)
     select_combobox.configure(state='readonly')
+    s_show.configure(state=NORMAL)
 
 def solve(file_input: Entry, label: Entry):
     filepath = file_input.get()
@@ -177,15 +172,102 @@ def solve(file_input: Entry, label: Entry):
         f.write(str(line)+'\n')
         f.write(str(total_time)+'\n')
     change_label(label, '%s | Time: %.3f' % (file_name_sol, total_time))
-    display = DisplayMatplotlib(m_size,o_env,line,start,[],goals,best_cost)
-    display.draw()
+    display = DisplayMatplotlib(m_size,o_env,line,start,goals,best_cost)
+    display.draw(arrow=False)
 
-# solve('Test/map_.txt',None)
-# Press the green button in the gutter to run the script.
+def show_environment(vslr: VisualizeResult):
+    showEnvironment = DisplayMatplotlib(vslr.m_size, vslr.o_env, [], vslr.start, vslr.goals)
+    showEnvironment.draw(arrow=False)
+
+def show_result(select_combobox, s_map, s_des, show_o, s_dis,  
+                s_time, l_st, l_dst, vslr: VisualizeResult,
+                button_se, button_ptp, button_ss, button_dy):
+    
+    env, m_size, target, order, dis, result, time = read_file (select_combobox.get(),1)
+    vslr.m_size = m_size
+    vslr.env = env
+    goals, o_env, start, is_have_s = split_map(env)
+    vslr.goals = goals
+    vslr.o_env = o_env
+    vslr.start = start
+    vslr.is_have_s = is_have_s
+    vslr.target = target
+    vslr.order = order
+    vslr.dis = dis
+    vslr.result = result
+    vslr.time = time
+
+    change_label(s_map,str(m_size))
+    change_label(s_des,str(target))
+    change_label(show_o,str(order))
+    change_label(s_dis,str(dis))
+    change_label(s_time,str(time))
+    list_point = tuple([str(point) for point in range(len(target))])
+    l_st.configure(state=NORMAL)
+    l_st['values'] = list_point
+    l_st.current(0)
+    l_st.configure(state='readonly')
+
+    l_dst.configure(state=NORMAL)
+    l_dst['values'] = list_point
+    l_dst.current(0)
+    l_dst.configure(state='readonly')
+    
+    button_se.configure(state=NORMAL)
+    button_ptp.configure(state=NORMAL)
+    button_ss.configure(state=NORMAL)
+    button_dy.configure(state=NORMAL)
+
+def show_ptp(l_st, l_dst, vslr: VisualizeResult):
+    print('----show_ptp-----')
+    st = int(l_st.get())
+    dst = int(l_dst.get())
+    rev_result = vslr.result.copy()
+    rev_result.reverse()
+    index_st = vslr.result.index(vslr.target[st])
+    index_dst = len(vslr.result) - rev_result.index(vslr.target[dst])
+    print(vslr.target[st],vslr.target[dst])
+    if index_st > index_dst:
+        line = vslr.result[index_dst-1:index_st+1]
+    else:
+        line = vslr.result[index_st:index_dst]
+    print(index_st,index_dst)
+    print(line)
+
+    show_ptp = DisplayMatplotlib(vslr.m_size, vslr.o_env, line, vslr.start, vslr.goals)
+    show_ptp.draw(arrow=True)
+
+def create_map(list_ms, file_input):
+    print('-----create_map------')
+    m_s = int(list_ms.get())
+    file_path = file_input.get()
+    if '.txt' not in file_path:
+        empty_map = np.zeros((m_s,m_s),dtype=int)
+        display_map = DisplayPygame(map_size=m_s,env=empty_map,BLOCKSIZE=60-m_s)
+        display_map.create_map()
+        pygame.quit()
+    else:
+        env, m_size = read_file(file_path)
+        display_map = DisplayPygame(map_size=m_size,env=env,BLOCKSIZE=60-m_size)
+        file_path = display_map.create_map()
+        change_label(file_input,str(file_path))
+    print('----end create-------')
+
+def show_solve(vslr: VisualizeResult):
+    showEnvironment = DisplayMatplotlib(vslr.m_size, vslr.o_env, vslr.result, vslr.start, vslr.goals, vslr.dis)
+    showEnvironment.draw(arrow=False)
+
+def show_dynamic(select_combobox):
+    # visualizeResult = VisualizeResult(select_combobox.get())
+    # visualizeResult.showSolutionDynamic()
+    pass
+
+
 if __name__ == '__main__':
+    vslr = VisualizeResult
     root = Tk()  # main win
     root.title("MPA")
-    root.geometry('450x300')
+    root.geometry('500x400')
     root.resizable(width=0, height=0)
 
     title_frame = Frame(root)
@@ -193,30 +275,44 @@ if __name__ == '__main__':
     main_frame = Frame(root)
     main_frame.pack(fill="both")
     file_input_label = Label(main_frame, text="File")
-    file_input_label.grid(row=0, column=0, pady=1)
-    file_input = Entry(main_frame, width=50)
-    file_input.grid(row=0, column=1, padx=5, pady=1)
+    file_input_label.grid(row=0, column=0, pady=5)
+    file_input = Entry(main_frame, width=50 )
+    file_input.grid(row=0, column=1, padx=5, pady=5)
     file_input.insert(END, "file_solve")
     file_input.configure(state=DISABLED)
 
     solve_button_frame = Frame(root)
     solve_button_frame.pack(fill="both")
     rs_label = Entry(solve_button_frame, width=40)
-    rs_label.grid(row=1, column=2, padx=30, pady=1)
+    rs_label.grid(row=1, column=2, padx=5, pady=5)
     rs_label.insert(END, "")
     rs_label.configure(state=DISABLED)
+    
+    n_m_size = StringVar()
+    list_ms = Combobox(title_frame, width=5, textvariable=n_m_size)
+    list_ms['values'] = [*range(10,31,5)]
+    list_ms.grid(column=2, row=0, padx=5, pady=5)
+    list_ms.current(0)
+    list_ms.configure(state=DISABLED)
 
-    s_file = Button(solve_button_frame, text="Select", command=partial(select_file, file_input))
-    s_file.grid(row=1, column=0, padx=5, pady=1)
+
+
+    s_file = Button(solve_button_frame, text="Select", command=partial(select_file, file_input, list_ms))
+    s_file.grid(row=1, column=0, padx=5, pady=5)
     s_file.configure(state=DISABLED)
 
     s_solve = Button(solve_button_frame, text="Solve", command=partial(solve, file_input, rs_label))
-    s_solve.grid(row=1, column=1, padx=5, pady=1)
+    s_solve.grid(row=1, column=1, padx=5, pady=5)
     s_solve.configure(state=DISABLED)
+    
+    new_map = Button(title_frame, text="Create new map", command=partial(create_map, list_ms, file_input))
+    new_map.grid(row=0, column=1, padx=5, pady=5)
+    new_map.configure(state=DISABLED)
+
     Button(title_frame, text="Solve new solutions",
-           command=partial(select_solve, s_file, s_solve)).grid(row=0, column=0, padx=5, pady=1)
-    # Button(title_frame, text="Solve all solutions in program",
-    #        command=partial(solve_all, file_input, rs_label)).grid(row=0, column=1, padx=5, pady=1)
+           command=partial(select_solve, s_file, s_solve, list_ms, new_map)).grid(row=0, column=0, padx=5, pady=5)
+    
+    
     show_title_frame = Frame(root)
     show_title_frame.pack(fill="both")
 
@@ -230,34 +326,39 @@ if __name__ == '__main__':
     list_file.current(0)
     list_file.configure(state=DISABLED)
 
-    Button(show_title_frame, text="Show solutions",
-           command=partial(select_show, list_file)).grid(row=1, column=0, padx=5, pady=1)
 
     show_result_frame = Frame(root)
     show_result_frame.pack(fill="both")
     Label(show_result_frame, text='Size of Map').grid(row=0, column=0, pady=1)
-    show_map = Entry(show_result_frame, width=20)
+    show_map = Entry(show_result_frame, width=40, foreground='black')
     show_map.grid(row=0, column=1, padx=5, pady=1)
     show_map.insert(END, "")
     show_map.configure(state=DISABLED)
 
     Label(show_result_frame, text='Destination').grid(row=1, column=0, pady=1)
-    show_des = Entry(show_result_frame, width=20)
+    show_des = Entry(show_result_frame, width=40, foreground='black')
     show_des.grid(row=1, column=1, padx=5, pady=1)
     show_des.insert(END, "")
     show_des.configure(state=DISABLED)
 
-    Label(show_result_frame, text='Distance').grid(row=2, column=0, pady=1)
-    show_dis = Entry(show_result_frame, width=20)
-    show_dis.grid(row=2, column=1, padx=5, pady=1)
+    Label(show_result_frame, text='Order').grid(row=2, column=0, pady=1)
+    show_o = Entry(show_result_frame, width=40, foreground='black')
+    show_o.grid(row=2, column=1, padx=5, pady=1)
+    show_o.insert(END, "")
+    show_o.configure(state=DISABLED)
+
+
+    Label(show_result_frame, text='Distance').grid(row=3, column=0, pady=1)
+    show_dis = Entry(show_result_frame, width=40, foreground='black')
+    show_dis.grid(row=3, column=1, padx=5, pady=1)
     show_dis.insert(END, "")
     show_dis.configure(state=DISABLED)
 
-    Label(show_result_frame, text='Time Solve').grid(row=3, column=0, pady=1)
-    show_time = Entry(show_result_frame, width=20)
-    show_time.grid(row=3, column=1, padx=5, pady=1)
+    Label(show_result_frame, text='Time Solve').grid(row=4, column=0, pady=1)
+    show_time = Entry(show_result_frame, width=40, foreground='black')
+    show_time.grid(row=4, column=1, padx=5, pady=1)
     show_time.insert(END, "")
-    show_time.configure(state=DISABLED)
+    show_time.configure(state=DISABLED)#,background='White',foreground='yellow')
 
     show_button_frame = Frame(root)
     show_button_frame.pack(fill="both")
@@ -276,27 +377,35 @@ if __name__ == '__main__':
     list_dst.current(0)
     list_dst.configure(state=DISABLED)
 
-    # button_se = Button(show_button_frame, text="Environment",
-    #                    command=partial(show_environment, list_file), width=13)
-    # button_se.grid(row=0, column=0, padx=5, pady=1)
+    button_se = Button(show_button_frame, text="Environment", command=partial(show_environment, vslr), width=13)
+    button_se.grid(row=0, column=0, padx=5, pady=1)
+    button_se.configure(state=DISABLED)
 
-    # button_ptp = Button(show_button_frame, text="Point to Point",
-    #                     command=partial(show_ptp, list_file, list_st, list_dst), width=13)
-    # button_ptp.grid(row=0, column=1, padx=5, pady=1)
+    button_ptp = Button(show_button_frame, text="Point to Point", command=partial(show_ptp, list_st, list_dst, vslr), width=13)
+    button_ptp.grid(row=0, column=1, padx=5, pady=1)
+    button_ptp.configure(state=DISABLED)
 
-    # button_ss = Button(show_button_frame, text="Solutions",
-    #                    command=partial(show_solve, list_file), width=13)
-    # button_ss.grid(row=1, column=0, padx=5, pady=1)
+    button_ss = Button(show_button_frame, text="Solutions", command=partial(show_solve, vslr), width=13)
+    button_ss.grid(row=1, column=0, padx=5, pady=1)
+    button_ss.configure(state=DISABLED)
 
-    # button_dy = Button(show_button_frame, text="Animations",
-    #                    command=partial(show_dynamic, list_file), width=13)
-    # button_dy.grid(row=1, column=1, padx=5, pady=1)
 
-    # s_show = Button(show_file_frame, text="Select",
-    #                 command=partial(show_result, list_file, show_map, show_des, show_dis, show_time, list_st, list_dst))
-    # s_show.grid(row=0, column=2, padx=5, pady=1)
+    button_dy = Button(show_button_frame, text="Animations", command=partial(show_dynamic, list_file), width=13)
+    button_dy.grid(row=1, column=1, padx=5, pady=1)
+    button_dy.configure(state=DISABLED)
 
-    mainloop()
+    s_show = Button(show_file_frame, text="Select", command=partial(
+                        show_result, list_file, show_map, show_des, show_dis,
+                        show_time, show_o, list_st, list_dst, vslr,
+                        button_se, button_ptp, button_ss, button_dy
+                        ))
+    s_show.grid(row=0, column=2, padx=5, pady=1)
+    s_show.configure(state=DISABLED)
+    
+    Button(show_title_frame, text="Show solutions",
+        command=partial(select_show, list_file, s_show)).grid(row=1, column=0, padx=5, pady=1)
+    Button(root, text="Quit", command=root.quit).pack() #button to close the window
+    root.mainloop()
 
 
 
