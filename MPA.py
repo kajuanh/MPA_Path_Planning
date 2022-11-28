@@ -1,202 +1,168 @@
-import math
-from scipy.stats import levy
-import numpy as np
+from mytempcode_MPA.levy import levy as levys
+from GripMap import GridMap
 import random as rd
+import numpy as np
+import math
 
 
-class MPA:
-    environment = []
-    list_dst = []
-    n = 0
-    x_min = 1
-    x_max = 5
+def display_data(data: np):
+    for i in data:
+        display_line_array(i)
+
+
+def display_line_array(line: np):
+    s = ''
+    for j in line:
+        s += '[%-2s %-2s]  ' % (j[0], j[1])
+    print(s)
+
+def read_file(filepath):
+    with open(filepath, "r") as file:
+        #area = map_size*map_size (map_size located on line 1 of the file)
+        map_size = int(file.readline())
+
+        #number of goal (num_goal located on line 2 of the file)
+        num_goal = int(file.readline())
+
+        #get coordinates of goal on (num_goal) line next and reverse
+        list_goal = []
+        for i in range(num_goal):
+            goal = file.readline().strip()
+            goal_coordinates = list(map(int, goal.split()))
+            list_goal.append([goal_coordinates[1], goal_coordinates[0]])
+
+        #get map from file
+        np_map = np.zeros((map_size, map_size), int)
+        for line in range(map_size):
+            np_map[line] = (file.readline()).strip().split()
+
+        #convert to window coordinate system
+        np_map = np_map.transpose()
+
+        # #get list obstacle from map
+        # list_obstacle = []
+        # list_empty = []
+        # for i in range(map_size):
+        #     for j in range(map_size):
+        #         if np_map[i][j] == 1:
+        #             list_obstacle.append((i, j))
+        #         else:
+        #             list_empty.append((i, j))
+
+        #change node goal to empty
+        for goal in list_goal:
+            np_map[int(goal[0])][int(goal[1])] = 0
+
+        #save data about map
+        # environment = GridMap(map_size,np_map,list_obstacle,list_empty)
+        print('SUCCESS read file')
+        return map_size, np_map, list_goal#, list_obstacle, list_empty, 
+
+
+class MPA(GridMap):
     d_min = 2
-    origin = 0.4
+    
+    def shorten(self, origin_sol: list[list[int, int]], start: list[int, int], end: list[int, int]):
+        '''shorten the path'''
+        reduce_sol = [start]
+        while self.check_collision(reduce_sol[-1], end):
+            i = len(origin_sol) - 1
+            while self.check_collision(reduce_sol[-1], origin_sol[i]):
+                i -= 1
+            reduce_sol.append(origin_sol[i])
+        pre_sol = start
+        reduce_sol.pop(0)
+        reduce_sol.append(end)
+        iPrey = []
+        for sol in reduce_sol:
+            loop = int(self.distance_s(pre_sol, sol) / self.d_min)
+            for i in range(1, loop):
+                x = round(pre_sol[0] + (sol[0] - pre_sol[0]) * i / loop)
+                y = round(pre_sol[1] + (sol[1] - pre_sol[1]) * i / loop)
+                if self.check_collision(pre_sol, [x, y]) or self.check_collision([x, y], sol):
+                    continue
+                iPrey.append([x, y])
+            iPrey.append(sol)
+            pre_sol = sol
+        iPrey.pop()
+        return iPrey
 
-    def __init__(self, filename):
-        fp = open(filename, "r")
-        f_n = int(fp.readline())
-        f_l = int(fp.readline())
-        l_dst = []
-        f_map = []
-        for f_i in range(f_l):
-            s = fp.readline()
-            s_l = s[:-1].split(" ")
-            l_dst.append([int(s_l[0]) + 0.5, int(s_l[1]) + 0.5])
-        for f_i in range(f_n):
-            s = fp.readline()
-            s_l = s[0:-2].split(" ")
-            f_map.append(list(map(int, s_l)))
-        print(f_map)
-        for f_i in l_dst:
-            f_map[int(f_i[0])][int(f_i[1])] = 0
-        self.n = f_n
-        self.list_dst = list(l_dst)
-        self.environment = []
-        for f_i in f_map:
-            self.environment.append(list(f_i))
-        fp.close()
-
-    def check_collision(self, f_X1, f_X2):
-        x1 = int(f_X1[0])
-        y1 = int(f_X1[1])
-        x2 = int(f_X2[0])
-        y2 = int(f_X2[1])
-
-        if self.environment[x1][y1] == 1 or self.environment[x2][y2] == 1:
-            return True
-        else:
-            if x1 > x2:
-                x1 = int(f_X2[0])
-                x2 = int(f_X1[0])
-            if y1 > y2:
-                y1 = int(f_X2[1])
-                y2 = int(f_X1[1])
-            list_obstacle = []
-            x1 -= 1
-            if x1 < 0:
-                x1 = 0
-            x2 += 1
-            if x2 >= self.n:
-                x2 = self.n - 1
-            y1 -= 1
-            if y1 < 0:
-                y1 = 0
-            y2 += 1
-            if y2 >= self.n:
-                y2 = self.n - 1
-            for f_i in range(x1, x2 + 1):
-                for f_j in range(y1, y2 + 1):
-                    if self.environment[f_i][f_j] == 1:
-                        list_obstacle.append([f_i, f_j])
-
-            if len(list_obstacle) == 0:
-                return False
-            if f_X1[0] == f_X2[0]:
-                for obs in list_obstacle:
-                    x_left = obs[0] - self.origin
-                    x_right = obs[0] + 1 + self.origin
-                    y_top = obs[1] - self.origin
-                    y_bot = obs[1] + 1 + self.origin
-                    y_low = f_X1[1]
-                    y_high = f_X2[1]
-                    if f_X1[1] > f_X2[1]:
-                        y_low = f_X2[1]
-                        y_high = f_X1[1]
-                    if x_left <= f_X1[0] <= x_right and (y_low <= y_top <= y_high or y_low <= y_bot <= y_high):
-                        return True
-            elif f_X1[1] == f_X2[1]:
-                for obs in list_obstacle:
-                    x_left = obs[0] - self.origin
-                    x_right = obs[0] + 1 + self.origin
-                    y_top = obs[1] - self.origin
-                    y_bot = obs[1] + 1 + self.origin
-                    x_low = f_X1[0]
-                    x_high = f_X2[0]
-                    if f_X1[0] > f_X2[0]:
-                        x_low = f_X2[0]
-                        x_high = f_X1[0]
-                    if y_top <= f_X1[1] <= y_bot and (x_low <= x_left <= x_high or x_low <= x_right <= x_high):
-                        return True
-            else:
-                f_a = (f_X2[1] - f_X1[1]) / (f_X2[0] - f_X1[0])
-                f_b = f_X1[1] - f_a * f_X1[0]
-                for obs in list_obstacle:
-                    x_left = obs[0] - self.origin
-                    x_right = obs[0] + 1 + self.origin
-                    y_top = obs[1] - self.origin
-                    y_bot = obs[1] + 1 + self.origin
-
-                    x_top = (y_top - f_b) / f_a
-                    x_bot = (y_bot - f_b) / f_a
-                    y_left = f_a * x_left + f_b
-                    y_right = f_a * x_right + f_b
-
-                    x_low = f_X1[0]
-                    x_high = f_X2[0]
-                    if f_X1[0] > f_X2[0]:
-                        x_low = f_X2[0]
-                        x_high = f_X1[0]
-
-                    y_low = f_X1[1]
-                    y_high = f_X2[1]
-                    if f_X1[1] > f_X2[1]:
-                        y_low = f_X2[1]
-                        y_high = f_X1[1]
-
-                    if (x_left <= x_top <= x_right and (y_low <= y_top <= y_high or y_low <= y_bot <= y_high)) or \
-                            (x_left <= x_bot <= x_right and (y_low <= y_top <= y_high or y_low <= y_bot <= y_high)) or \
-                            (y_top <= y_left <= y_bot and (x_low <= x_left <= x_high or y_low <= x_right <= y_high)) or \
-                            (y_top <= y_right <= y_bot and (x_low <= x_left <= x_high or y_low <= x_right <= y_high)):
-                        return True
-            return False
-
-    @staticmethod
-    def distance(f_X1, f_X2):
-        return math.sqrt((f_X1[0] - f_X2[0]) * (f_X1[0] - f_X2[0]) + (f_X1[1] - f_X2[1]) * (f_X1[1] - f_X2[1]))
-
-    def calculator(self, f_sol, f_st, f_dst):
-        s = 0
-        is_dst = False
-        pre_x = f_st
-        for f_x in f_sol:
-            if self.check_collision(pre_x, f_x):
-                return 1, s
-            s += self.distance(pre_x, f_x)
-            if not self.check_collision(f_x, f_dst):
-                s += self.distance(f_x, f_dst)
-                is_dst = True
+    def best_shorten(self, best_prey: list[list[int, int]], start: list[int, int], end: list[int, int]):
+        '''shorten best_prey '''
+        start = list(start)
+        end = list(end)
+        best_reduce = []
+        for i in best_prey:
+            best_reduce.append(list(i))
+            if not self.check_collision(i, end):
                 break
-            pre_x = f_x
-        if not is_dst:
-            if self.check_collision(f_sol[-1], f_dst):
-                return 1, s
-            s += self.distance(f_sol[-1], f_dst)
-        return 0, s
 
-    def check(self, f_X1, f_X2):
-        f_x = f_X1[0]
-        f_y = f_X1[1]
-        pre_x = f_X2[0]
-        pre_y = f_X2[1]
+        final_sol = [start]
+        while self.check_collision(final_sol[-1], end):
+            i = len(best_reduce) - 1
+            while self.check_collision(final_sol[-1], best_reduce[i]):
+                i -= 1
+            final_sol.append(best_reduce[i])
+        final_sol.append(end)
+        return final_sol
 
-        if f_x < self.origin:
-            f_a = (f_y - pre_y) / (f_x - pre_x)
-            f_b = f_y - f_a * f_x
-            f_x = self.origin
-            f_y = f_a * f_x + f_b
-        elif f_x >= self.n:
-            f_a = (f_y - pre_y) / (f_x - pre_x)
-            f_b = f_y - f_a * f_x
-            f_x = self.n - self.origin
-            f_y = f_a * f_x + f_b
-        if f_y < self.origin:
-            f_a = (f_x - pre_x) / (f_y - pre_y)
-            f_b = f_x - f_a * f_y
-            f_y = self.origin
-            f_x = f_a * f_y + f_b
-        elif f_y >= self.n:
-            f_a = (f_x - pre_x) / (f_y - pre_y)
-            f_b = f_x - f_a * f_y
-            f_y = self.n - self.origin
-            f_x = f_a * f_y + f_b
-        if f_x >= self.n - self.origin:
-            f_x = self.n - self.origin
-        if f_y >= self.n - self.origin:
-            f_y = self.n - self.origin
-        if f_x <= self.origin:
-            f_x = self.origin
-        if f_y <= self.origin:
-            f_y = self.origin
+    def random_init(self, start: list[int, int], end: list[int, int]):
+        '''random init individuals (path)'''
+        origin_sol = [start]
+        temp_map = self.data.copy()
+        limit = 1000
+        lim = 0
+        if temp_map[start[0], start[1]] == 1 or temp_map[end[0], end[1]] == 1:
+            print('start or end is not node empty')
+            return
+        else:
+            temp_map[start[0], start[1]] = 3
+        while (self.check_collision(origin_sol[-1], end)):
+            rd_values = self.random_space(1, origin_sol[-1], temp_map)
+            while True:
+                if len(rd_values) == 0:
+                    origin_sol.pop()
+                    break
+                selected = rd.choice(rd_values)
+                rd_values.remove(selected)
 
-        return round(f_x, 2), round(f_y, 2)
+                if not self.check_collision(selected, origin_sol[-1]):
+                    origin_sol.append(selected)
+                    temp_map[selected[0], selected[1]] = 3
+                    break
 
+            if len(origin_sol) == 0 or lim > limit:
+                origin_sol = [start]
+                temp_map = self.data.copy()
+                temp_map[start[0], start[1]] = 3
+                lim = 0
+            lim += 1
+        origin_sol = self.shorten(origin_sol, start, end)
+        return origin_sol
+
+    def full_data(self, data: list[list[list]], start: list[int], end: list[int]):
+        '''full data by end to create numpy'''
+        max_len = 0
+
+        for line in data:
+            if line[0] == start:
+                line.pop(0)
+            if line[-1] == end:
+                line.pop(-1)
+
+            if (len_line := len(line)) > max_len:
+                max_len = len_line
+
+        for line in data:
+            line.extend([end for _ in range(max_len-len(line))])
+        return data, max_len
+    
     def normal_search(self, f_sol):
         f_ns_sol = []
         for f_i in f_sol:
-            f_x = self.d_min * rd.random() * (rd.randint(0, 2) - 1)
-            f_y = self.d_min * rd.random() * (rd.randint(0, 2) - 1)
-            f_ns_sol.append(self.check([f_i[0] + f_x, f_i[1] + f_y], f_i))
+            f_x = rd.randint(-1, 1)
+            f_y = rd.randint(-1, 1)
+            f_ns_sol.append([f_i[0] + f_x, f_i[1] + f_y])
         return f_ns_sol
 
     def evolution(self, f_father, f_mother, f_st, f_dst):
@@ -207,7 +173,7 @@ class MPA:
             elif self.check_collision(f_child[-1], f_mother[f_i]):
                 f_child.append(f_father[f_i])
             else:
-                if self.distance(f_child[-1], f_father[f_i]) < self.distance(f_child[-1], f_mother[f_i]):
+                if self.distance_s(f_child[-1], f_father[f_i]) < self.distance_s(f_child[-1], f_mother[f_i]):
                     f_child.append(f_father[f_i])
                 else:
                     f_child.append(f_mother[f_i])
@@ -218,205 +184,238 @@ class MPA:
             f_child.append(f_dst)
         return f_child
 
-    def way(self, st, dst):
-        if not self.check_collision(st, dst):
-            return self.distance(st, dst), [list(st), list(dst)]
-        n_child = self.n
-        min_s = math.inf
-        prey = list([])
-        best_prey = list([])
-        old_s = list([])
-        max_d = 0
-        for index in range(n_child):
-            origin_sol = list([list(st)])
-            mp = []
-            for env in self.environment:
-                mp.append(list(env))
-            while self.check_collision(origin_sol[-1], dst):
-                limit = 0
-                while True:
-                    limit += 1
-                    x0 = (self.x_min + rd.random() * (self.x_max - self.x_min)) * (rd.randint(0, 2) - 1)
-                    y0 = (self.x_min + rd.random() * (self.x_max - self.x_min)) * (rd.randint(0, 2) - 1)
-                    x, y = self.check([origin_sol[-1][0] + x0, origin_sol[-1][1] + y0], origin_sol[-1])
-                    if not self.check_collision([int(x) + 0.5, int(y) + 0.5], origin_sol[-1]):
-                        x = int(x) + 0.5
-                        y = int(y) + 0.5
-                    if mp[int(x)][int(y)] == 0 and not self.check_collision([x, y], origin_sol[-1]):
-                        origin_sol.append([x, y])
-                        mp[int(x)][int(y)] = 3
-                        break
-                    if limit > self.x_max * self.x_max * 40:
-                        origin_sol.pop()
-                        break
-                if len(origin_sol) == 0:
-                    origin_sol = list([list(st)])
-                    mp.clear()
-                    for env in self.environment:
-                        mp.append(list(env))
-            reduce_sol = list([list(st)])
-            while self.check_collision(reduce_sol[-1], dst):
-                i = len(origin_sol) - 1
-                while self.check_collision(reduce_sol[-1], origin_sol[i]):
-                    i -= 1
-                reduce_sol.append(origin_sol[i])
-            pre_sol = st
-            reduce_sol.pop(0)
-            reduce_sol.append(list(dst))
-            iPrey = list([])
-            for sol in reduce_sol:
-                loop = int(self.distance(pre_sol, sol) / self.d_min)
-                for i in range(1, loop):
-                    x = round(pre_sol[0] + (sol[0] - pre_sol[0]) * i / loop, 2)
-                    y = round(pre_sol[1] + (sol[1] - pre_sol[1]) * i / loop, 2)
-                    if self.check_collision(pre_sol, [x, y]) or self.check_collision([x, y], sol):
-                        continue
-                    iPrey.append([x, y])
-                iPrey.append(sol)
-                pre_sol = sol
-            iPrey.pop()
-            sol_d = len(iPrey)
-            if max_d < sol_d:
-                max_d = sol_d
-            v, dis_prey = self.calculator(iPrey, st, dst)
-            old_s.append(dis_prey)
-            prey.append(iPrey)
-            if min_s > dis_prey:
-                min_s = dis_prey
-                best_prey = list(iPrey)
-        d = max_d
-        for i in range(n_child):
-            for j in range(d - len(prey[i])):
-                prey[i].append(list(dst))
-        for i in range(d - len(best_prey)):
-            best_prey.append(list(dst))
-
-        X_min = np.array([[self.x_min, self.x_min] for _ in range(d)])
-        X_max = np.array([[self.x_max, self.x_max] for _ in range(d)])
-        prey = np.array(prey)
-        old_prey = np.array(prey)
-        loop = 1
-        levy.a = 1.5
-        levy.b = 1
-        P = np.array([[0.5, 0.5] for _ in range(d)])
-
-        for index in range(loop):
-            for i in range(n_child):
-                new_v, new_dis = self.calculator(prey[i], st, dst)
-                if new_v == 0:
-                    if new_dis < old_s[i]:
-                        old_s[i] = new_dis
-                    else:
-                        prey[i] = np.array(old_prey[i])
-                    if new_dis < min_s:
-                        min_s = new_dis
-                        print(min_s)
-                        best_prey = np.array(prey[i])
-                else:
-                    prey[i] = np.array(old_prey[i])
-            Elite = np.array([list(best_prey) for _ in range(n_child)])
-            old_prey = np.array(prey)
-
-            cf = math.pow(1 - index / loop, 2 * index / loop)
-            CF = np.array([[cf, cf] for _ in range(d)])
-            for i in range(n_child):
-                pre_prey = []
-                rBx = np.random.normal(0, 1, d)
-                rBy = np.random.normal(0, 1, d)
-                Rb = np.array([[rBx[j], rBy[j]] for j in range(d)])
-                rLx = levy.rvs(0, 1, d)
-                rLy = levy.rvs(0, 1, d)
-                Rl = np.array([[rLx[j], rLy[j]] for j in range(d)])
-                rx = np.random.uniform(0, 1, d)
-                ry = np.random.uniform(0, 1, d)
-                R = np.array([[rx[j], ry[j]] for j in range(d)])
-                if index < loop / 3:
-                    step = Rb * (Elite[i] - Rb * prey[i])
-                    pre_prey = prey[i] + P * R * step
-                elif loop / 3 <= index < 2 * loop / 3:
-                    if i < self.n / 2:
-                        step = Rl * (Elite[i] - Rl * prey[i])
-                        pre_prey = prey[i] + P * R * step
-                    else:
-                        step = Rb * (Rb * Elite[i] - prey[i])
-                        pre_prey = Elite[i] + P * CF * step
-                elif index >= 2 * loop / 3:
-                    step = Rl * (Rl * Elite[i] - prey[i])
-                    pre_prey = Elite[i] + P * CF * step
-                for j in range(d):
-                    pre_prey[j] = self.check(pre_prey[j], prey[i][j])
-                prey[i] = np.array(pre_prey)
-
-            for i in range(n_child):
-                new_v, new_dis = self.calculator(prey[i], st, dst)
-                if new_v == 0:
-                    if new_dis < old_s[i]:
-                        old_s[i] = new_dis
-                    else:
-                        prey[i] = np.array(old_prey[i])
-                    if new_dis < min_s:
-                        min_s = new_dis
-                        best_prey = np.array(prey[i])
-                        print(min_s)
-                else:
-                    prey[i] = np.array(old_prey[i])
-
-                child = self.normal_search(prey[i])
-                new_v, new_dis = self.calculator(child, st, dst)
-                if new_v == 0:
-                    if new_dis < old_s[i]:
-                        old_s[i] = new_dis
-                        prey[i] = np.array(child)
-                    if new_dis < min_s:
-                        min_s = new_dis
-                        best_prey = np.array(child)
-                        print(min_s)
-
-                ga_child = self.evolution(child, prey[i], st, dst)
-                new_v, new_dis = self.calculator(ga_child, st, dst)
-                if new_v == 0:
-                    if new_dis < old_s[i]:
-                        old_s[i] = new_dis
-                        prey[i] = np.array(ga_child)
-                    if new_dis < min_s:
-                        min_s = new_dis
-                        best_prey = np.array(ga_child)
-                        print(min_s)
-
-            old_prey = np.array(prey)
-
-            r_x = rd.random()
-            fad = 0.2 * (1 - r_x) + r_x
-            Fad = np.array([[fad, fad] for _ in range(d)])
-            ux = np.random.randint(0, 1, d)
-            uy = np.random.randint(0, 1, d)
-            U = np.array([[ux[j], uy[j]] for j in range(d)])
-
-            for i in range(n_child):
-                rx = np.random.uniform(0, 1, d)
-                ry = np.random.uniform(0, 1, d)
-                R = np.array([[rx[j], ry[j]] for j in range(d)])
-                pre_prey = prey[i]
-                if r_x < 0.2:
-                    pre_prey = pre_prey + CF * (X_min + R * (X_max - X_min)) * U
-                else:
-                    pre_prey = pre_prey + Fad * (prey[rd.randint(0, n_child - 1)] - prey[rd.randint(0, n_child - 1)])
-                for j in range(d):
-                    pre_prey[j] = self.check(pre_prey[j], prey[i][j])
-                prey[i] = pre_prey
-
-        best_reduce = []
-        for i in best_prey:
-            best_reduce.append(i)
-            if not self.check_collision(i, dst):
+    def calculator(self, f_sol:list[list[int]], f_st:list[int], f_dst:list[int]):
+        s = 0
+        is_dst = False
+        pre_x = f_st
+        for f_x in f_sol:
+            if self.check_collision(pre_x, f_x):
+                return 1, s
+            s += self.distance_s(pre_x, f_x)
+            if not self.check_collision(f_x, f_dst):
+                s += self.distance_s(f_x, f_dst)
+                is_dst = True
                 break
+            pre_x = f_x
+        if not is_dst:
+            if self.check_collision(f_sol[-1], f_dst):
+                return 1, s
+            s += self.distance_s(f_sol[-1], f_dst)
+        return 0, s
 
-        final_sol = list([list(st)])
-        while self.check_collision(final_sol[-1], dst):
-            i = len(best_reduce) - 1
-            while self.check_collision(final_sol[-1], best_reduce[i]):
-                i -= 1
-            final_sol.append(list(best_reduce[i]))
-        final_sol.append(list(dst))
-        v_sol, dis_sol = self.calculator(final_sol, st, dst)
+    def init_population(self, n_child: int, start: list[int], end: list[int]):
+        '''init population with n_child individuals'''
+        population = []
+        for _ in range(n_child):
+            population.append(self.random_init(start, end))
+        #     print('random_init: %d/%d' % (_+1, n_child), end='\r')
+        # print()
+        return population
+
+    def way(self, start: list[int], end: list[int]):
+        n_child = self.map_size*3
+        CONST_INF = 9999.0
+        if not self.check_collision(start, end):
+            # print('no have collision (start-end) ')
+            return self.distance_s(start, end), [start, end]
+
+        population = self.init_population(n_child, start, end)
+        data, dim = self.full_data(population, start, end)
+        Prey = np.array(data, dtype=np.int64)
+        SearchAgents_no = Prey.shape[0]
+        lb = 0
+        ub = self.map_size-1
+        Max_iter = 50
+
+        Xmin = np.ones((SearchAgents_no, dim), dtype=int)*lb
+        Xmax = np.ones((SearchAgents_no, dim), dtype=int)*ub
+
+        Top_predator_pos = np.zeros((dim, 2), dtype=int)
+        Top_predator_fit = CONST_INF
+
+        Convergence_curve = np.zeros((1, Max_iter))
+
+        stepsize_x = np.zeros((SearchAgents_no, dim))
+        stepsize_y = np.zeros((SearchAgents_no, dim))
+
+        fitness = np.full((SearchAgents_no, 1), CONST_INF)
+
+        FADs = 0.2
+        P = 0.5
+        for Iter in range(50):
+            for i in range(SearchAgents_no):
+
+                Flag4ubx = (Prey[i, :,0] > ub).astype(int)
+                Flag4lbx = (Prey[i, :,0] < lb).astype(int)
+                Flag4uby = (Prey[i, :,1] > ub).astype(int)
+                Flag4lby = (Prey[i, :,1] < lb).astype(int)
+
+                Prey[i, :, 0] = (Prey[i, :, 0]*(np.logical_not(Flag4ubx +Flag4lbx).astype(int))+ub*Flag4ubx+lb*Flag4lbx)
+                Prey[i, :, 1] = (Prey[i, :, 1]*(np.logical_not(Flag4uby +Flag4lby).astype(int))+ub*Flag4uby+lb*Flag4lby)
+                v, dis_prey = self.calculator(Prey[i, :].tolist(), start, end)
+
+                if v == 0:
+                    fitness[i, 0] = dis_prey
+                elif v == 1:
+                    fitness[i, 0] = CONST_INF
+                else:
+                    print(v, dis_prey, Prey[i, :])
+                if (fitness[i, 0] < Top_predator_fit):
+                    Top_predator_fit = fitness[i, 0]
+
+                    Top_predator_pos = Prey[i].copy()
+                    # print(fitness[i, 0])
+            # print(Top_predator_pos.T)
+            if Iter == 0:
+                fit_old = fitness.copy()
+                Prey_old = Prey.copy()
+
+            Inx = np.zeros((fitness.shape[0],1))
+            for i in range(fitness.shape[0]):
+                if(fit_old[i] < fitness[i]):
+                    Inx[i] = 0
+                else:
+                    Inx[i] = 1
+
+            Indx = np.full((Inx.shape[0], dim), Inx, dtype=int)
+            Prey[:, :, 0] = Indx*Prey_old[:, :, 0] + np.logical_not(Indx) * Prey[:, :, 0]
+            Prey[:, :, 1] = Indx*Prey_old[:, :, 1] + np.logical_not(Indx) * Prey[:, :, 1]
+            fitness =Inx*fit_old + np.logical_not(Inx).astype(int) * fitness
+
+            fit_old = fitness.copy()
+            Prey_old = Prey.copy()
+                
+            Elite = np.full((SearchAgents_no, *Top_predator_pos.shape), Top_predator_pos, dtype=np.int64)  # %(Eq. 10)
+
+            CF = (1-Iter/Max_iter)**(2*Iter/Max_iter)
+
+            # RLX = np.array(levy.rvs(0, 1, (SearchAgents_no, dim)))
+            # RLY = np.array(levy.rvs(0, 1, (SearchAgents_no, dim)))
+            RLX = 0.05*levys(SearchAgents_no, dim, 1.5)
+            RLY = 0.05*levys(SearchAgents_no, dim, 1.5)
+            # RBX = np.random.normal(0,1,(SearchAgents_no, dim))
+            # RBY = np.random.normal(0,1,(SearchAgents_no, dim))
+            RBX = np.random.randn(SearchAgents_no, dim)
+            RBY = np.random.randn(SearchAgents_no, dim)
+
+            for i in range(SearchAgents_no):
+                for j in range(dim):
+                    R = rd.uniform(0, 1)
+                    #  %------------------ Phase 1 (Eq.12) -------------------
+                    if Iter < Max_iter/3:
+                        stepsize_x[i, j] = RBX[i, j] * (Elite[i, j, 0]-RBX[i, j]*Prey[i, j, 0])
+                        stepsize_y[i, j] = RBY[i, j] * (Elite[i, j, 1]-RBY[i, j]*Prey[i, j, 1])
+
+                        Prey[i, j, 0] = Prey[i, j, 0] + ((P*R*stepsize_x[i, j]) % self.map_size) if stepsize_x[i, j] > 0 else - ((P*R*abs(stepsize_x[i, j])) % self.map_size)
+                        Prey[i, j, 1] = Prey[i, j, 1] + ((P*R*stepsize_y[i, j]) % self.map_size) if stepsize_y[i, j] > 0 else - ((P*R*abs(stepsize_y[i, j])) % self.map_size)
+
+                    # %--------------- Phase 2 (Eqs. 13 & 14)----------------
+                    elif (Iter > Max_iter/3) and (Iter < 2*Max_iter/3):
+                        if i > Prey.shape[0]/2:
+                            stepsize_x[i, j] = RBX[i, j] * (Elite[i, j, 0]-RBX[i, j]*Prey[i, j, 0])
+                            stepsize_y[i, j] = RBY[i, j] * (Elite[i, j, 1]-RBY[i, j]*Prey[i, j, 1])
+
+                            Prey[i, j, 0] = Elite[i, j, 0] + ((P*CF*stepsize_x[i, j]) % self.map_size) if stepsize_x[i, j] > 0 else - (
+                                (P*CF*abs(stepsize_x[i, j])) % self.map_size)
+
+                            Prey[i, j, 1] = Elite[i, j, 1] + ((P*CF*stepsize_y[i, j]) % self.map_size) if stepsize_y[i, j] > 0 else - (
+                                (P*CF*abs(stepsize_y[i, j])) % self.map_size)
+                        else:
+                            stepsize_x[i, j] = (RLX[i, j] * (Elite[i, j, 0]-RLX[i, j]*Prey[i, j, 0]))
+                            stepsize_y[i, j] = (RLY[i, j] * (Elite[i, j, 1]-RLY[i, j]*Prey[i, j, 1]))
+
+                            Prey[i, j, 0] = Prey[i, j, 0] + ((P*R*stepsize_x[i, j]) % self.map_size) if stepsize_x[i, j] > 0 else - (
+                                (P*R*abs(stepsize_x[i, j])) % self.map_size)
+
+                            Prey[i, j, 1] = Prey[i, j, 1] + ((P*R*stepsize_y[i, j]) % self.map_size) if stepsize_y[i, j] > 0 else - (
+                                (P*R*abs(stepsize_y[i, j])) % self.map_size)
+
+                    #  %----------------- Phase 3 (Eq. 15)-------------------
+                    else:
+                        stepsize_x[i, j] = (RLX[i, j] * (RLX[i, j]*Elite[i, j, 0]-Prey[i, j, 0]))
+                        stepsize_y[i, j] = (RLX[i, j] * (RLX[i, j]*Elite[i, j, 1]-Prey[i, j, 1]))
+
+                        Prey[i, j, 0] = Elite[i, j, 0] + ((P*CF*stepsize_x[i, j]) % self.map_size) if stepsize_x[i, j] > 0 else - (
+                            (P*CF*abs(stepsize_x[i, j])) % self.map_size)
+
+                        Prey[i, j, 1] = Elite[i, j, 1] + ((P*CF*stepsize_y[i, j]) % self.map_size) if stepsize_y[i, j] > 0 else - (
+                            (P*CF*abs(stepsize_y[i, j])) % self.map_size)
+
+                child = self.normal_search(Prey[i])
+                new_v, new_dis = self.calculator(child, start, end)
+                if new_v == 0 and new_dis < fitness[i]:
+                    Prey[i] = child
+                
+                ga_child = self.evolution(child, Prey[i], start, end)
+                new_v, new_dis = self.calculator(ga_child, start, end) 
+                if new_v == 0 and new_dis < fitness[i]:
+                    Prey[i] = ga_child
+
+
+            # display_data(Prey)
+            for i in range(SearchAgents_no):
+                # dis_prey = np.inf
+                Flag4ubx = (Prey[i, :,0] > ub).astype(int)
+                Flag4lbx = (Prey[i, :,0] < lb).astype(int)
+                Flag4uby = (Prey[i, :,1] > ub).astype(int)
+                Flag4lby = (Prey[i, :,1] < lb).astype(int)
+
+                Prey[i, :, 0] = (Prey[i, :, 0]*(np.logical_not(Flag4ubx + Flag4lbx).astype(int))+ub*Flag4ubx+lb*Flag4lbx)
+                Prey[i, :, 1] = (Prey[i, :, 1]*(np.logical_not(Flag4uby + Flag4lby).astype(int))+ub*Flag4uby+lb*Flag4lby)
+                v,dis_prey = self.calculator(Prey[i, :].tolist(), start, end) 
+
+                if v == 0:
+                    fitness[i, 0] = dis_prey
+                    
+                elif v==1:
+                    fitness[i, 0] = CONST_INF
+                else:
+                    print(v, dis_prey, Prey[i, :])
+
+                if (fitness[i, 0] < Top_predator_fit):
+                    Top_predator_fit = fitness[i, 0].copy()
+                    Top_predator_pos = Prey[i].copy()
+                    # print(fitness[i, 0])
+
+            # print('Top_predator_pos:')
+            # display_line_array(Top_predator_pos)
+            # print('fitness',fitness)
+            if Iter == 0:
+                fit_old = fitness.copy()
+                Prey_old = Prey.copy()
+
+            Inx = np.zeros((fitness.shape[0],1),dtype=int)
+            for i in range(fitness.shape[0]):
+                if(fit_old[i] < fitness[i]):
+                    Inx[i] = 0
+                else:
+                    Inx[i] = 1
+
+            Indx = np.full((Inx.shape[0], dim), Inx, dtype=int)
+
+            Prey[:, :, 0] = Indx*Prey_old[:, :, 0] + np.logical_not(Indx) * Prey[:, :, 0]
+            Prey[:, :, 1] = Indx*Prey_old[:, :, 1] + np.logical_not(Indx) * Prey[:, :, 1]
+
+            fitness =Inx*fit_old + np.logical_not(Inx) * fitness
+            Prey_old = Prey.copy()
+            #%---------- Eddy formation and FADs� effect (Eq 16) -----------
+            if rd.uniform(0, 1) < FADs:
+                U = np.random.rand(SearchAgents_no, dim) < FADs
+                stepsize_x = CF * ((Xmin+np.random.rand(SearchAgents_no, dim)*(Xmax-Xmin))*U)
+                stepsize_y = CF * ((Xmin+np.random.rand(SearchAgents_no, dim)*(Xmax-Xmin))*U)
+                Prey[:, :, 0] = Prey[:, :, 0] + stepsize_x 
+                Prey[:, :, 1] = Prey[:, :, 1] + stepsize_y 
+            else:
+                r = rd.uniform(0, 1)
+                Rs = Prey.shape[0]
+                stepsize_x = (FADs*(1-r)+r)*(Prey[np.random.permutation(Rs), :, 0]-Prey[np.random.permutation(Rs), :, 0])
+                stepsize_y = (FADs*(1-r)+r)*(Prey[np.random.permutation(Rs), :, 1]-Prey[np.random.permutation(Rs), :, 1])
+                Prey[:, :, 0] = Prey[:, :, 0] + stepsize_x
+                Prey[:, :, 1] = Prey[:, :, 1] + stepsize_y
+
+            Convergence_curve[:, Iter] = Top_predator_fit
+        
+        final_sol = self.best_shorten(Top_predator_pos.tolist(), start, end)
+        v_sol, dis_sol = self.calculator(final_sol, start, end)
         return dis_sol, final_sol
+
