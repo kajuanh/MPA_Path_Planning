@@ -41,7 +41,8 @@ def split_map(env: np):
 
 
 def read_file(filepath:str, type:int = 0):
-    '''return map, map_size, (target, order, dis, result, time if type = 1) '''
+    '''return map, map_size, (target, order, dis, result, time, map_tsp, map_way
+    if type = 1) '''
     try:
         with open(filepath) as f:
             m_s = int(f.readline())
@@ -57,7 +58,9 @@ def read_file(filepath:str, type:int = 0):
                 dis = float(f.readline())
                 result = ast.literal_eval(f.readline())
                 time = ast.literal_eval(f.readline())
-                return np_map, m_s, target, order, dis, result, time
+                map_tsp = ast.literal_eval(f.readline())
+                map_way = ast.literal_eval(f.readline())
+                return np_map, m_s, target, order, dis, result, time, map_tsp, map_way
     except Exception as E:
         print(E)
         raise Exception('error read file ') 

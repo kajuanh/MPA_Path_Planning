@@ -112,14 +112,17 @@ def solve(file_input: Entry, label: Entry):
         
         t = 1
         for key, item in dict_log.items():
-            if t < 15:
+            if t < 20:
                 stdscr.addstr(t, 0, "{2} {0} : {1}".format(key, item, t))
-            elif 15 < t < 30:
-                stdscr.addstr(t-15, 40, "{2} {0} : {1}".format(key, item, t))
-            elif t>30:
-                stdscr.addstr(t-30, 80, "{2} {0} : {1}".format(key, item, t))
+            elif 20 < t < 40:
+                stdscr.addstr(t-20, 40, "{2} {0} : {1}".format(key, item, t))
+            elif 40<t<60:
+                stdscr.addstr(t-40, 80, "{2} {0} : {1}".format(key, item, t))
+            elif 60<t:
+                stdscr.addstr(t-60, 120, "{2} {0} : {1}".format(key, item, t))
+
             # else:
-            #     stdscr.addstr(t-30, 40, "{2} {0} : {1}".format(key, item, t))
+            #     stdscr.addstr(t-30, 105, "{2} {0} : {1}".format(key, item, t))
             t += 1
         stdscr.refresh()
 
@@ -171,6 +174,8 @@ def solve(file_input: Entry, label: Entry):
         f.write(str(best_cost)+'\n')
         f.write(str(line)+'\n')
         f.write(str(total_time)+'\n')
+        f.write(str(map_tsp.tolist())+'\n')
+        f.write(str(map_way.tolist())+'\n')
     change_label(label, '%s | Time: %.3f' % (file_name_sol, total_time))
     display = DisplayMatplotlib(m_size,o_env,line,start,goals,best_cost)
     display.draw(arrow=False)
@@ -183,7 +188,7 @@ def show_result(select_combobox, s_map, s_des, show_o, s_dis,
                 s_time, l_st, l_dst, vslr: VisualizeResult,
                 button_se, button_ptp, button_ss, button_dy):
     
-    env, m_size, target, order, dis, result, time = read_file (select_combobox.get(),1)
+    env, m_size, target, order, dis, result, time, map_tsp, map_way = read_file (select_combobox.get(),1)
     vslr.m_size = m_size
     vslr.env = env
     goals, o_env, start, is_have_s = split_map(env)

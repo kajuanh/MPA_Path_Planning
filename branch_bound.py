@@ -1,11 +1,12 @@
-map_tsp = [
+'''map_tsp = [
     [ 0.0 , 12.23,  6.65, 15.99, 22.5 ],
     [12.23,  0.0 , 18.48, 18.99, 13.21],
     [ 6.65, 18.48,  0.0 , 10.58, 22.46],
     [15.99, 18.99, 10.58,  0.0 , 10.58],
     [22.5 , 13.21, 22.46, 10.58,  0.0 ],
 ]
-'''>>>>>best_cost
+
+>>>>>best_cost
  53.242
 [[None list([[0, 1], [1, 4], [2, 6], [2, 10], [0, 12]])
   list([[0, 1], [2, 0], [5, 0], [6, 1]])
@@ -28,7 +29,9 @@ map_tsp = [
   list([[13, 14], [12, 12], [12, 5], [14, 3], [13, 1], [10, 0], [6, 0], [6, 1]])
   list([[13, 14], [12, 11], [12, 5], [13, 4]]) None]]
 '''
-
+from VisualizeResult_copy import read_file,split_map,  DisplayMatplotlib
+map, map_size, target, order, dis, result, time, map_tsp, map_way  = read_file('Solutions/map15_11_s_sol.txt',1)
+goals, o_env, start, is_have_s = split_map(map)
 # Python3 program to solve
 # Traveling Salesman Problem using
 # Branch and Bound.
@@ -188,12 +191,37 @@ visited = [False] * N
  
 # Stores the final minimum weight
 # of shortest tour.
+import time
 final_res = maxsize
- 
+st = time.time()
 TSP(adj,N)
- 
+et = time.time()
 print("Minimum cost :", final_res)
 print("Path Taken : ", end = ' ')
 for i in range(N + 1):
     print(final_path[i], end = ' ')
+print('\nt1 %.4f'%(et-st))
 
+
+from new_Ga import GA_TSP
+st2 = time.time()
+ga_tsp = GA_TSP(map_tsp,N*(N-1),15,0.3,index_s=0)
+best_cost, best = ga_tsp.solve()
+et2 = time.time()
+
+print('>>>>>>>',best_cost)
+best.insert(0,0)
+best.append(0)
+print('>>>>>>>',best)
+print('t2 %.4f'%(et2-st2))
+print(str(final_path))
+l1 = []
+l2 = []
+for i in range(len(final_path)-1):
+        l1.extend(map_way[final_path[i]][final_path[i+1]])
+for j in range(len(best)-1):
+        l2.extend(map_way[best[j]][best[j+1]])
+dis1 = DisplayMatplotlib(map_size, o_env, l1, target[0], goals,final_res)
+dis2 = DisplayMatplotlib(map_size, o_env, l2, target[0], goals,best_cost)
+dis1.draw(arrow=True)
+dis2.draw(arrow=True)
