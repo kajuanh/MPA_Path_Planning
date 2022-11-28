@@ -1,103 +1,96 @@
-import math
-import random as rd
+import numpy as np
 
+class GA_TSP:
+    def __init__(self, map_tsp, k=20, max_gen=5, mutation_prob=0.1, index_s=None):
+        self.mutation_prob = mutation_prob
+        self.num_t = len(map_tsp)
+        self.map_tsp = map_tsp
+        self.max_gen = max_gen
+        self.index_s = index_s
+        self.map_cost = {}
+        self.k = k
 
-class GA:
+    def compute_fitness(self, s):
+        if (l := self.map_cost.get(str(s))) is not None:
+            return l
+        else:
+            l = 0
+            for i in range(self.num_t-1):
+                l += self.map_tsp[s[i]][s[i+1]]
+            if self.index_s is not None:
+                l += self.map_tsp[self.index_s][s[0]]
+                l += self.map_tsp[s[-1]][self.index_s]
+            else:
+                l += self.map_tsp[s[len(s)-1]][s[0]]
 
-    def __init__(self, f_map):
-        self.map_tsp = f_map
-        self.n = len(f_map)
+            self.map_cost[str(s)] = l
+        return l
 
-    def c_cost(self, sol):
-        cost = 0
-        pre_city = sol[-1]
-        for city in sol:
-            cost += self.map_tsp[pre_city][city][0]
-            pre_city = city
-        return cost
+    
+    def selection(self, gen, k):
+        gen = sorted(gen, key=lambda s: self.compute_fitness(s))
+        return gen[:k]
 
-    def evolution(self, father, mother):
-        first = rd.randint(0, self.n - 1)
-        second = rd.randint(first + 1, self.n)
-        older = mother[first:second]
-        elder = father[first:second]
-        for f_i in range(first):
-            x = father[f_i]
-            while older.count(x) != 0:
-                x = father[mother.index(x)]
-            older.insert(f_i, x)
-        for f_i in range(second, self.n):
-            x = father[f_i]
-            while older.count(x) != 0:
-                x = father[mother.index(x)]
-            older.append(x)
+    def crossover(self, s1, s2, index):
+        m_1, f_2 = s1.copy(), s2.copy()
 
-        for f_i in range(first):
-            x = mother[f_i]
-            while elder.count(x) != 0:
-                x = mother[father.index(x)]
-            elder.insert(f_i, x)
-        for f_i in range(second, self.n):
-            x = mother[f_i]
-            while elder.count(x) != 0:
-                x = mother[father.index(x)]
-            elder.append(x)
-        if rd.random() < 0.1:
-            first = rd.randint(0, self.n - 1)
-            second = rd.randint(first + 1, self.n)
-            rev = older[first:second]
-            rev.reverse()
-            older = older[:first] + rev + older[second:]
-        if rd.random() < 0.1:
-            first = rd.randint(0, self.n - 1)
-            second = rd.randint(first + 1, self.n)
-            rev = elder[first:second]
-            rev.reverse()
-            elder = elder[:first] + rev + elder[second:]
-        return older, elder
+        c1 = f_2.copy()
+        for i in range(index, len(m_1)): c1.remove(m_1[i])
+        for i in range(index, len(m_1)): c1.append(m_1[i])
+
+        c2 = m_1.copy()
+        for i in range(index, len(f_2)): c2.remove(f_2[i])
+        for i in range(index, len(f_2)): c2.append(f_2[i])
+        return (c1, c2)
+
+    def mutation(self, s, m, n):
+        i, j = min(m, n), max(m, n)
+        cs = s.copy()
+        while i < j:
+            cs[i], cs[j] = cs[j], cs[i]
+            i += 1
+            j -= 1
+        return cs
+
+    def init_population(self):
+        path = list(range(self.num_t))
+        if self.index_s is not None:
+            path.pop(self.index_s)
+            self.num_t -=1
+        n_p = self.k
+        gen = [path]
+        while len(gen) < n_p:
+            copy_path = path.copy()
+            np.random.shuffle(copy_path)
+            # try:
+            #     gen.index(copy_path)
+            # except Exception:
+            #     gen.append(copy_path)
+            if copy_path not in gen:
+                gen.append(copy_path)
+        return gen
 
     def solve(self):
-        num = int((self.n * (self.n - 1)) / 2)
-        if num > 30:
-            num = 30
-        num_child = int(num / 3)
-        list_pa = []
-        for i in range(num):
-            prey = [x for x in range(self.n)]
-            pa = []
-            for j in range(self.n):
-                x = prey[rd.randint(0, self.n - j - 1)]
-                pa.append(x)
-                prey.remove(x)
-            list_pa.append(pa)
-        list_rank = []
-        for i in list_pa:
-            list_rank.append([self.c_cost(i), i])
-        list_rank.sort()
-        loop = 100000
-        elite = list_rank[0][0]
-        loop_break = 0
-        for i in range(loop):
-            list_child = []
-            for j in range(num_child):
-                i_child1 = rd.randint(0, int(num / 2))
-                i_child2 = rd.randint(i_child1, int(num / 2))
-                child1, child2 = self.evolution(list_rank[i_child1][1], list_rank[i_child2][1])
-                child = [self.c_cost(child1), child1]
-                if list_rank.count(child) == 0:
-                    list_child.append(list(child))
-                child = [self.c_cost(child2), child2]
-                if list_rank.count(child) == 0:
-                    list_child.append(list(child))
-            list_rank = list_rank[:(num - num_child)] + list_child
-            list_rank.sort()
-            if elite == list_rank[0][0]:
-                loop_break += 1
-            else:
-                elite = list_rank[0][0]
-                loop_break = 0
-            if loop_break > 3000:
-                print("break", i)
-                break
-        return list_rank[0]
-    # See PyCharm help at https://www.jetbrains.com/help/pycharm/
+        ''' return best_cost, best '''
+        gen = self.init_population()
+        for trial in range(self.max_gen):
+            gen = self.selection(gen, self.k)
+            next_gen = []
+            for i in range(len(gen)):
+                for j in range(i+1, len(gen)):
+                    c1, c2 = self.crossover(gen[i], gen[j], np.random.randint(0, len(gen[i])))
+                    next_gen.append(c1)
+                    next_gen.append(c2)
+                if np.random.rand() < self.mutation_prob:
+                    m = np.random.randint(0, len(gen[i]))
+                    while True:
+                        n = np.random.randint(0, len(gen[i]))
+                        if m != n:
+                            break
+                    c = self.mutation(gen[i], m, n)
+                    next_gen.append(c)
+            gen = next_gen
+
+        best_gen = self.selection(gen, 1)[0]
+        best = (round(self.compute_fitness(best_gen),3), best_gen)
+        return best

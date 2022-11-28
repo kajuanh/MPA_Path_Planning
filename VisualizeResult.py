@@ -1,211 +1,245 @@
-import matplotlib.pyplot as plt
-import numpy as np
+import os
+import ast
 import pygame
-import math
+import numpy as np
+from tkinter import messagebox
+from tkinter import filedialog
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
+
+BLACK = (0, 0, 0,1)
+WHITE = (250, 250, 250,1)
+YELLOW = (215, 225, 88,1)
+GRAY = (150/255, 150/255, 100/255,1)
+BLUE = (0,0,230,1)
+GREEN = (0,230,0,1)
+
+def split_map(env: np):
+    '''return goals, o_env, start, is_have_s (have start)'''
+    o_env = env.copy()
+    goals = list(map(list, zip(*np.where(env == 2))))
+    find_start = list(map(list, zip(*np.where(env == 3))))
+    find_another = list(map(list, zip(*np.where(env >= 4))))
+    for goal in goals:
+        o_env[goal[0], goal[1]] = 0
+
+    start = []
+    is_have_s = False
+    
+    for st in find_start:
+        start = st
+        o_env[start[0], start[1]] = 0
+        is_have_s = True
+
+
+    for ano in find_another:
+        o_env[ano[0], ano[1]] = 0
+
+    return goals, o_env, start, is_have_s
+
+
+def read_file(filepath:str, type:int = 0):
+    '''return map, map_size, (target, order, dis, result, time, map_tsp, map_way
+    if type = 1) '''
+    try:
+        with open(filepath) as f:
+            m_s = int(f.readline())
+            np_map = np.zeros((m_s, m_s), int)
+            for line in range(m_s):
+                np_map[line] = (f.readline()).strip().split()
+            np_map = np_map.transpose()
+            if type == 0:
+                return np_map, m_s
+            elif type == 1:
+                target = ast.literal_eval(f.readline())
+                order = ast.literal_eval(f.readline())
+                dis = float(f.readline())
+                result = ast.literal_eval(f.readline())
+                time = ast.literal_eval(f.readline())
+                map_tsp = ast.literal_eval(f.readline())
+                map_way = ast.literal_eval(f.readline())
+                return np_map, m_s, target, order, dis, result, time, map_tsp, map_way
+    except Exception as E:
+        print(E)
+        raise Exception('error read file ') 
+
+
+class DisplayMatplotlib:
+    def __init__(self, m_size, env,line=[],  start= [],goals=[],dis=None):
+        self.plt = plt
+        self.m_size = m_size
+        self.line = line
+        self.env = env
+        self.start = start
+        self.goals = goals
+        self.dis = dis
+    def draw_line(self, points: list[list]):#, plt: matplotlib.pyplot):
+        xl = []
+        yl = []
+        for point in points:
+            xl.append(point[0]+0.5)
+            yl.append(point[1]+0.5)
+        plt.plot(xl, yl, '-')
+    
+    def draw_line_arrow(self, points: list[list],ax):#, plt: matplotlib.pyplot):
+        for i in range (len(points)-1):
+            x1 =  points[i][0]+0.5
+            y1 = points[i][1]+0.5
+            x2 =  points[i+1][0]+0.5
+            y2 = points[i+1][1]+0.5
+            x_mid = (x1+x2)/2
+            y_mid = (y1+y2)/2
+            dx = (x2-x1)*0.01
+            dy = (y2-y1)*0.01
+            plt.plot([x1,x2],[y1,y2],'b-')
+
+            plt.arrow(x_mid, y_mid, dx, dy, head_width=0.2, head_length=0.2, length_includes_head=True, color='b')
+
+    def draw(self, arrow: bool):
+        fig, ax = plt.subplots()
+        fig.set_size_inches(10, 10)
+        if not self.dis is None:
+            ax.set_title("Distance = " + str(self.dis))
+        else:
+            if len(self.start)>1:
+                hs = 'start at' + str(self.start)
+            else:
+                hs = 'no start'
+            ax.set_title("Map size %d -- %d goals -- "%(self.m_size,len(self.goals)) + hs)
+        ax.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
+        ax.set_xlim(0, self.m_size)
+        ax.set_ylim(0, self.m_size)
+        plt.xticks([*range(self.m_size)])
+        plt.yticks([*range(self.m_size)])
+        if arrow:
+            self.draw_line_arrow(self.line,ax)
+        else:
+            self.draw_line(self.line)
+
+        if len(self.start) > 0 :
+            rect = Rectangle(tuple(self.start), 1, 1, linewidth=1, edgecolor=GRAY, facecolor='g')
+            ax.add_patch(rect)
+        for goal in self.goals:
+            rect = Rectangle(tuple(goal), 1, 1, linewidth=1, edgecolor=GRAY, facecolor='y')
+            ax.add_patch(rect)
+        plt.imshow(self.env.transpose(), cmap='binary', origin='lower', extent=(0, self.m_size, 0, self.m_size))
+        plt.grid()
+        ax.invert_yaxis()
+
+        plt.show(block=False)
+        plt.pause(50)
 
 class VisualizeResult:
+    m_size = None
+    env = None
+    o_env=None,
+    goals=[]
+    start=[]
+    target=[]
+    order=[]
+    dis=None
+    result=[]
+    is_have_s = False
+    time=None
 
-    def __init__(self, filename):
-        fp = open(filename, "r")
-        self.n = int(fp.readline())
-        num_des = int(fp.readline())
-        self.list_des = []
-        self.environment = []
-        f_map = []
-        for f_i in range(num_des):
-            s = fp.readline()
-            des = s[:-1].split(" ")
-            self.list_des.append([float(des[0]), float(des[1])])
-        for f_i in range(self.n):
-            s = fp.readline()
-            line = s[:-2].split(" ")
-            f_map.append(list(map(int, line)))
-        for f_i in f_map:
-            self.environment.append(list(f_i))
-        self.map_tsp = [[[0, []] for _ in range(num_des)] for _ in range(num_des)]
-        for i_s in range(num_des):
-            for i_d in range(i_s + 1, num_des):
-                dis_ds = float(fp.readline())
-                line = fp.readline()[:-2].split(" ")
-                sol = list(map(float, line))
-                way_sd = []
-                for i in range(int(len(sol) / 2)):
-                    way_sd.append([sol[2 * i], sol[2 * i + 1]])
-                self.map_tsp[i_s][i_d] = [dis_ds, way_sd]
-                re_way = list(way_sd)
-                re_way.reverse()
-                self.map_tsp[i_d][i_s] = [dis_ds, re_way]
-        self.dis_sol = float(fp.readline())
-        self.solution = list(map(int, fp.readline()[:-2].split(" ")))
-        self.time_solution = float(fp.readline())
-        self.list_move = []
-        pre = self.solution[-1]
-        for i in self.solution:
-            self.list_move += self.map_tsp[pre][i][1]
-            pre = i
-        fp.close()
+class DisplayPygame:
+    def __init__(self,map_size,env,MARGIN=1,BLOCKSIZE = 40) -> None:
+        self.map_size =map_size
+        self.env =env
+        self.MARGIN = MARGIN
+        self.BLOCKSIZE = BLOCKSIZE-MARGIN
+        WINDOW_WIDTH = WINDOW_HEIGHT = map_size*(BLOCKSIZE)
+        global SCREEN, CLOCK
+        SCREEN = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+        CLOCK = pygame.time.Clock()
+        self.work = {3: 'start', 1: 'obstacle', 2: 'goal'}
+        self.key_math = 1
 
-    # def __init__(self, f_map, f_list_dst, f_tsp, f_sol):
-    #     self.environment = f_map
-    #     self.list_des = f_list_dst
-    #     self.map_tsp = f_tsp
-    #     self.n = len(f_map)
-    #     self.solution = f_sol
-    #     pre = self.solution[-1]
-    #     self.list_move = []
-    #     for i in self.solution:
-    #         self.list_move += self.map_tsp[pre][i][1]
-    #         pre = i
+    def drawGrid(self):
+        for x in range(self.map_size):
+            for y in range(self.map_size):
+                rect = pygame.Rect(
+                    x*(self.BLOCKSIZE+self.MARGIN) ,
+                    y*(self.BLOCKSIZE+self.MARGIN),
+                    self.BLOCKSIZE, self.BLOCKSIZE
+                    )
+                if self.env[x][y] == 1:
+                    pygame.draw.rect(SCREEN, BLACK, rect)
+                elif self.env[x][y] == 2:
+                    pygame.draw.rect(SCREEN, YELLOW, rect)
+                elif self.env[x][y] == 3:
+                    pygame.draw.rect(SCREEN, GREEN, rect)
+                else:
+                    pygame.draw.rect(SCREEN, BLACK, rect, self.MARGIN)
 
-    def showEnvironment(self):
-        fig, ax = plt.subplots(1, 1, figsize=(8, 8), dpi=120)
-        ax.set_title("Distance = " + str(self.dis_sol))
-        ax.set_yticks([])
-        ax.set_yticklabels([])
-        ax.set_xticks([])
-        ax.set_xticklabels([])
+    def save(self):
+        files = [('All Files', '*.*'), 
+                    ('Python Files', '*.py'),
+                    ('Text Document', '*.txt')]
+        file =  filedialog.asksaveasfile(filetypes = files, defaultextension = files)
+        if file is not None:
+            with open(file.name,'w') as f:
+                f.write(str(self.map_size)+'\n')
+                save_env = self.env.transpose()
+                print(save_env)
+                for line in save_env:
+                    f.write(' '.join(list(map(str,(line.tolist()))))+'\n')
+            
+            return os.path.relpath(file.name)
+        else:
+            return None
 
-        ax.plot([0, self.n, self.n, 0, 0], [0, 0, self.n, self.n, 0], color='red')
-        x_plt = np.arange(0, self.n, 0.1)
+    def event_create_map(self,done): 
+        file_path = None       
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                save = messagebox.askokcancel('Done','Do you want to save')
+                if save:
+                    file_path = self.save()
+                done = True
+                break
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                pos =pygame.mouse.get_pos()
+                x = pos[0]//(self.BLOCKSIZE+self.MARGIN)
+                y = pos[1]//(self.BLOCKSIZE+self.MARGIN)
+                print('Click ', pos, 'Grid coordinates: (', x, ',', y, ')')
 
-        for des in self.list_des:
-            ax.fill_between(x_plt, self.n - 0.5 - des[0], self.n - des[0] + 0.5,
-                            where=(x_plt >= des[1] - 0.5) & (x_plt <= des[1] + 0.5), color='yellow')
+                if self.key_math == 1:
+                    if self.env[x, y] == 1:
+                        self.env[x, y] = 0
+                    elif self.env[x, y] == 0:
+                        self.env[x, y] = 1
+                elif self.key_math == 2:
+                    if self.env[x, y] == 2:
+                        self.env[x, y] = 0
+                    elif self.env[x, y] == 0:
+                        self.env[x, y] = 2
+                elif self.key_math == 3:
+                    if self.env[x, y] == 0:
+                        os_x, os_y = np.where(self.env==3)
+                        if len(os_x) >0 and len(os_y)>0:
+                            self.env[int(os_x)][int(os_y)] = 0
+                        self.env[x][y] = 3
+                    elif self.env[x, y] == 3:
+                        self.env[x][y] = 0
+            elif event.type == pygame.KEYDOWN or event.type == pygame.KEYUP:
+                if event.key == pygame.K_s:
+                    self.key_math = 3
+                elif event.key == pygame.K_o:
+                    self.key_math = 1
+                elif event.key == pygame.K_g:
+                    self.key_math = 2
+        return done, file_path
 
-        for i_map in range(self.n):
-            for j_map in range(self.n):
-                if self.environment[i_map][j_map] == 1:
-                    ax.fill_between(x_plt, self.n - 1 - i_map, self.n - i_map,
-                                    where=(x_plt >= j_map) & (x_plt <= j_map + 1), color='red')
-        plt.show()
+    def create_map(self):
+        done = False
+        while not done:
+            SCREEN.fill(WHITE)
+            pygame.display.set_caption('Update %s (key-> o: obstacle; s: start; g: goal)'%self.work[self.key_math])
 
-    def showPointToPoint(self, f_st, f_dst):
-        fig, ax = plt.subplots(1, 1, figsize=(8, 8), dpi=120)
-        ax.set_title("Distance = " + str(self.map_tsp[f_st][f_dst][0]))
-        ax.set_yticks([])
-        ax.set_yticklabels([])
-        ax.set_xticks([])
-        ax.set_xticklabels([])
-        xL = []
-        yL = []
-        for i_sd in self.map_tsp[f_st][f_dst][1]:
-            xL.append(i_sd[1])
-            yL.append(self.n - i_sd[0])
-        ax.plot(xL, yL, color='blue')
-        ax.plot([0, self.n, self.n, 0, 0], [0, 0, self.n, self.n, 0], color='red')
-        x_plt = np.arange(0, self.n, 0.1)
-
-        for des in self.list_des:
-            ax.fill_between(x_plt, self.n - 0.5 - des[0], self.n - des[0] + 0.5,
-                            where=(x_plt >= des[1] - 0.5) & (x_plt <= des[1] + 0.5), color='yellow')
-
-        for i_map in range(self.n):
-            for j_map in range(self.n):
-                if self.environment[i_map][j_map] == 1:
-                    ax.fill_between(x_plt, self.n - 1 - i_map, self.n - i_map,
-                                    where=(x_plt >= j_map) & (x_plt <= j_map + 1), color='red')
-        plt.show()
-
-    def showSolution(self):
-        fig, ax = plt.subplots(1, 1, figsize=(8, 8), dpi=120)
-        ax.set_title("MPA")
-        ax.set_yticks([])
-        ax.set_yticklabels([])
-        ax.set_xticks([])
-        ax.set_xticklabels([])
-        xL = []
-        yL = []
-        for i_sd in self.list_move:
-            xL.append(i_sd[1])
-            yL.append(self.n - i_sd[0])
-        ax.plot(xL, yL, color='blue')
-        ax.plot([0, self.n, self.n, 0, 0], [0, 0, self.n, self.n, 0], color='red')
-        x_plt = np.arange(0, self.n, 0.1)
-
-        for des in self.list_des:
-            ax.fill_between(x_plt, self.n - 0.5 - des[0], self.n - des[0] + 0.5,
-                            where=(x_plt >= des[1] - 0.5) & (x_plt <= des[1] + 0.5), color='yellow')
-
-        for i_map in range(self.n):
-            for j_map in range(self.n):
-                if self.environment[i_map][j_map] == 1:
-                    ax.fill_between(x_plt, self.n - 1 - i_map, self.n - i_map,
-                                    where=(x_plt >= j_map) & (x_plt <= j_map + 1), color='red')
-        plt.show()
-
-    def showSolutionDynamic(self):
-        origin = 0.4
-
-        list_des_pass = []
-        list_des_arrive = []
-        for i in self.solution:
-            list_des_arrive.append([self.list_des[i][0], self.list_des[i][1]])
-        start = list_des_arrive[0]
-        list_des_arrive.append(start)
-
-        pygame.init()
-        scale = 600 / self.n
-        win = pygame.display.set_mode((self.n * scale, self.n * scale))
-
-        pygame.display.set_caption("MPA")
-        list_move_py = []
-        for i in self.list_move:
-            list_move_py.append([i[1] * scale, i[0] * scale])
-        x = list_move_py[0][0]
-        y = list_move_py[0][1]
-
-        width = 2 * origin * scale
-        height = 2 * origin * scale
-
-        vel = self.n / 6
-        run = True
-
-        while run:
-            pygame.time.delay(10)
-            if len(list_move_py) >= 2:
-                f_st = list_move_py[0]
-                f_dst = list_move_py[1]
-                if f_st[0] == f_dst[0] and f_st[1] == f_dst[1]:
-                    list_move_py.pop(0)
-                    f_st = list_move_py[0]
-                    f_dst = list_move_py[1]
-                f_h = math.sqrt((f_dst[1] - f_st[1]) * (f_dst[1] - f_st[1])
-                                + (f_dst[0] - f_st[0]) * (f_dst[0] - f_st[0]))
-                pi_x = (f_dst[0] - f_st[0]) / f_h
-                pi_y = (f_dst[1] - f_st[1]) / f_h
-                vel_x = vel * pi_x
-                vel_y = vel * pi_y
-                x += vel_x
-                y += vel_y
-                if (x - f_dst[0]) * (x - f_st[0]) > 0 or (y - f_dst[1]) * (y - f_st[1]) > 0:
-                    x = f_dst[0]
-                    y = f_dst[1]
-                    if list_des_arrive[0][0] == round(y / scale, 2) and list_des_arrive[0][1] == round(x / scale, 2):
-                        list_des_pass.append(list_des_arrive[0])
-                        list_des_arrive.pop(0)
-                    list_move_py.pop(0)
-            else:
-                x = list_move_py[0][0]
-                y = list_move_py[0][1]
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    run = False
-
-            win.fill((255, 255, 255))
-            for des in list_des_arrive:
-                pygame.draw.rect(win, (255, 255, 0), [(des[1] - 0.5) * scale, (des[0] - 0.5) * scale, scale, scale])
-            for des in list_des_pass:
-                pygame.draw.rect(win, (0, 255, 255), [(des[1] - 0.5) * scale, (des[0] - 0.5) * scale, scale, scale])
-
-            pygame.draw.rect(win, (0, 0, 255), [x - origin * scale, y - origin * scale, width, height])
-
-            for i in range(self.n):
-                for j in range(self.n):
-                    if self.environment[i][j] == 1:
-                        pygame.draw.rect(win, (255, 0, 0), [j * scale, i * scale, scale, scale])
-
-            pygame.display.update()
-
+            done, file_path = self.event_create_map(done)
+            self.drawGrid()
+            pygame.display.flip()
         pygame.quit()
+        return file_path

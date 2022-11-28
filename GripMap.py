@@ -1,8 +1,7 @@
-from typing import List ,Union
-from threading import Thread
-import random as rd
-import numpy as np
 import math
+import numpy as np
+from threading import Thread
+from typing import List ,Union
 
 class ThreadWithReturnValue(Thread):
     def __init__(self, group=None, target=None, name=None,

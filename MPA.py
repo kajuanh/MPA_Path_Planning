@@ -1,9 +1,8 @@
-from mytempcode_MPA.levy import levy as levys
-from GripMap import GridMap
-import random as rd
-import numpy as np
 import math
-
+import numpy as np
+import random as rd
+from GripMap import GridMap
+from mytempcode_MPA.levy import levy as levys
 
 def display_data(data: np):
     for i in data:
@@ -15,48 +14,6 @@ def display_line_array(line: np):
     for j in line:
         s += '[%-2s %-2s]  ' % (j[0], j[1])
     print(s)
-
-def read_file(filepath):
-    with open(filepath, "r") as file:
-        #area = map_size*map_size (map_size located on line 1 of the file)
-        map_size = int(file.readline())
-
-        #number of goal (num_goal located on line 2 of the file)
-        num_goal = int(file.readline())
-
-        #get coordinates of goal on (num_goal) line next and reverse
-        list_goal = []
-        for i in range(num_goal):
-            goal = file.readline().strip()
-            goal_coordinates = list(map(int, goal.split()))
-            list_goal.append([goal_coordinates[1], goal_coordinates[0]])
-
-        #get map from file
-        np_map = np.zeros((map_size, map_size), int)
-        for line in range(map_size):
-            np_map[line] = (file.readline()).strip().split()
-
-        #convert to window coordinate system
-        np_map = np_map.transpose()
-
-        # #get list obstacle from map
-        # list_obstacle = []
-        # list_empty = []
-        # for i in range(map_size):
-        #     for j in range(map_size):
-        #         if np_map[i][j] == 1:
-        #             list_obstacle.append((i, j))
-        #         else:
-        #             list_empty.append((i, j))
-
-        #change node goal to empty
-        for goal in list_goal:
-            np_map[int(goal[0])][int(goal[1])] = 0
-
-        #save data about map
-        # environment = GridMap(map_size,np_map,list_obstacle,list_empty)
-        print('SUCCESS read file')
-        return map_size, np_map, list_goal#, list_obstacle, list_empty, 
 
 
 class MPA(GridMap):
