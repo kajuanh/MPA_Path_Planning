@@ -110,15 +110,16 @@ class MPA(GridMap):
         '''random init individuals (path)'''
         origin_sol = [start]
         temp_map = self.data.copy()
-        limit = 1000
+        limit = 10
         lim = 0
+        c = math.ceil(self.distance_s(start,end)/5)
         if temp_map[start[0], start[1]] == 1 or temp_map[end[0], end[1]] == 1:
-            print('start or end is not node empty')
+            raise Exception('start or end is not node empty')
             return
         else:
             temp_map[start[0], start[1]] = 3
         while (self.check_collision(origin_sol[-1], end)):
-            rd_values = self.random_space(1, origin_sol[-1], temp_map)
+            rd_values = self.random_space(c, origin_sol[-1], temp_map)
             while True:
                 if len(rd_values) == 0:
                     origin_sol.pop()
@@ -131,12 +132,13 @@ class MPA(GridMap):
                     temp_map[selected[0], selected[1]] = 3
                     break
 
-            if len(origin_sol) == 0 or lim > limit:
+            if len(origin_sol) == 0:
                 origin_sol = [start]
                 temp_map = self.data.copy()
                 temp_map[start[0], start[1]] = 3
-                lim = 0
-            lim += 1
+                lim += 1
+            if lim > limit:
+                raise Exception('start or end is stuck')
         origin_sol = self.shorten(origin_sol, start, end)
         return origin_sol
 
@@ -213,7 +215,7 @@ class MPA(GridMap):
         return population
 
     def way(self, start: list[int], end: list[int]):
-        n_child = self.map_size*3
+        n_child = self.map_size*2
         CONST_INF = 9999.0
         if not self.check_collision(start, end):
             # print('no have collision (start-end) ')
@@ -417,5 +419,6 @@ class MPA(GridMap):
         
         final_sol = self.best_shorten(Top_predator_pos.tolist(), start, end)
         v_sol, dis_sol = self.calculator(final_sol, start, end)
+        # print(dis_sol, final_sol)
         return dis_sol, final_sol
 

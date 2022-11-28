@@ -48,7 +48,7 @@ def read_file(filepath):
         #save data about map
         # environment = GridMap(map_size,np_map,list_obstacle,list_empty)
         print('SUCCESS read file')
-        return map_size,np_map,list_obstacle,list_empty, list_goal
+        return map_size,np_map, list_goal#,list_obstacle,list_empty,
 
 class MPAs(GridMap):
     x_min = 1
@@ -93,7 +93,7 @@ class MPAs(GridMap):
                 origin_sol = [start]
                 temp_map = self.data.copy()
                 temp_map[start[0], start[1]] = 3
-                lim = 0
+                lim = +1
             lim += 1
         origin_sol = self.shorten_t(origin_sol,start,end)
         return origin_sol

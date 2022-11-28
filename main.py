@@ -9,7 +9,8 @@ from tkinter import *
 from tkinter.ttk import *
 from tkinter import filedialog
 from functools import partial
-
+import os
+solutions_dir = os.path.abspath("Solutions")
 
 def solve_all(filename, label):
     list_file_solve = glob.glob('TestCase\**\*.txt', recursive=True)
@@ -104,7 +105,7 @@ def select_solve(select_button, solve_button):
 
 def select_show(select_combobox):
     select_combobox.configure(state=NORMAL)
-    select_combobox['values'] = tuple(glob.glob('Solutions\*.txt'))
+    select_combobox['values'] = tuple(os.path.join('Solutions',file) for file in glob.glob(pathname= "*.txt",root_dir=solutions_dir))#tuple(glob.glob('*.txt'))
     select_combobox.current(0)
     select_combobox.configure(state='readonly')
 
@@ -171,7 +172,7 @@ def show_dynamic(select_combobox):
 if __name__ == '__main__':
     root = Tk()  # main win
     root.title("MPA")
-    root.geometry('350x280')
+    root.geometry('400x400')
     root.resizable(width=0, height=0)
 
     title_frame = Frame(root)
